@@ -51,6 +51,13 @@ PUB Stop
 
     i2c.terminate
 
+PUB FirmwareRev
+' Read sensor internal firmware revision
+'   Returns:
+'       $FF: Version 1.0
+'       $20: Version 2.0
+    readReg( core#RD_FIRMWARE_REV, 1, @result)
+
 PUB PartID | tmp[2]
 ' Read the Part number portion of the serial number
 '   Returns:
@@ -106,6 +113,15 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
             i2c.Start
             i2c.Write (SLAVE_RD)
             i2c.Rd_Block (buff_addr, 6, FALSE)
+            i2c.Stop
+        core#RD_FIRMWARE_REV:
+            cmd_packet.byte[1] := reg.byte[1]
+            cmd_packet.byte[2] := reg.byte[0]
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 3)
+            i2c.Start
+            i2c.Write (SLAVE_RD)
+            i2c.Rd_Block (buff_addr, 1, FALSE)
             i2c.Stop
         OTHER:
             return

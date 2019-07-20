@@ -39,6 +39,8 @@ PUB Main | sn[2], i
         ser.Hex (sn.byte[i], 2)
     ser.NewLine
     ser.Dec ( si7021.PartID)
+    ser.NewLine
+    ser.Hex ( si7021.FirmwareRev, 2)
     Flash (LED, 100)
 
 PUB Setup

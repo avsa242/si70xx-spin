@@ -8,6 +8,7 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 * I2C Connection up to 400kHz
 * Reads 64-bit serial number from device
 * Reads 8-bit part number from device
+* Reads firmware version from device
 
 ## Requirements
 
@@ -19,7 +20,7 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 
 ## TODO
 
-- [ ] Read firmware rev
+- [x] Read firmware rev
 - [ ] Read Temp/humidity
 - [ ] Heater control
 - [ ] Measurement resolution control
