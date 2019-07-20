@@ -72,8 +72,8 @@ PUB SN(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
     longfill(@sna, 0, 2)
     longfill(@sna, 0, 2)
-    readReg(core#RD_SERIALNUM_1, 1, @sna)
-    readReg(core#RD_SERIALNUM_2, 1, @snb)
+    readReg(core#RD_SERIALNUM_1, 8, @sna)
+    readReg(core#RD_SERIALNUM_2, 6, @snb)
     byte[buff_addr][0] := snb.byte[4]
     byte[buff_addr][1] := snb.byte[3]
     byte[buff_addr][2] := snb.byte[1]
@@ -96,32 +96,14 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
             i2c.write (SLAVE_RD)
             i2c.rd_block (buff_addr, nr_bytes, TRUE)
             i2c.stop
-        core#RD_SERIALNUM_1:
+        core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
             cmd_packet.byte[1] := reg.byte[1]
             cmd_packet.byte[2] := reg.byte[0]
             i2c.Start
             i2c.Wr_Block (@cmd_packet, 3)
             i2c.Start
             i2c.Write (SLAVE_RD)
-            i2c.Rd_Block (buff_addr, 8, FALSE)
-            i2c.Stop
-        core#RD_SERIALNUM_2:
-            cmd_packet.byte[1] := reg.byte[1]
-            cmd_packet.byte[2] := reg.byte[0]
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 3)
-            i2c.Start
-            i2c.Write (SLAVE_RD)
-            i2c.Rd_Block (buff_addr, 6, FALSE)
-            i2c.Stop
-        core#RD_FIRMWARE_REV:
-            cmd_packet.byte[1] := reg.byte[1]
-            cmd_packet.byte[2] := reg.byte[0]
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 3)
-            i2c.Start
-            i2c.Write (SLAVE_RD)
-            i2c.Rd_Block (buff_addr, 1, FALSE)
+            i2c.Rd_Block (buff_addr, nr_bytes, FALSE)
             i2c.Stop
         OTHER:
             return
