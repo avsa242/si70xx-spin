@@ -1,8 +1,8 @@
 {
     --------------------------------------------
-    Filename: SI70xx-Test.spin
+    Filename: SI70xx-Demo.spin
     Author: Jesse Burt
-    Description: Test of the Si70xx driver
+    Description: Simple demo of the Si70xx driver
     Copyright (c) 2019
     Started Jul 20, 2019
     Updated Jul 21, 2019
