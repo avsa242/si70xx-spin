@@ -1,4 +1,4 @@
-# si7021-spin 
+# si70xx-spin 
 ---------------
 
 This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperature/humidity sensors.
