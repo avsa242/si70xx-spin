@@ -33,7 +33,7 @@ OBJ
 
 VAR
 
-    byte _ser_cog
+    byte _ser_cog, _temp_scale
 
 PUB Main | sn[2], i, temp
 
@@ -53,12 +53,43 @@ PUB Main | sn[2], i, temp
     ser.Hex (si7021.FirmwareRev, 2)
 
     si7021.Reset
+    _temp_scale := si7021.Scale (si7021#SCALE_C)
     fs.SetPrecision (5)
 
-    repeat
-'        ReadTemp_Float
-        ReadTemp_Int
+        ser.Position (0, 6)
+        temp := si7021.Humidity
+        ser.Dec (Temp)
         time.MSleep (100)
+
+    repeat
+{' Display measurements using floating-point math
+        ReadTemp_Float
+        ReadRH_Float
+}
+
+' Display measurements using fixed-point math
+        ReadTemp_Int
+        ReadRH_Int
+        time.MSleep (100)
+
+PUB ReadRH_Float | rh
+
+    rh := si7021.Humidity
+    rh := math.FFloat (rh)
+    rh := math.FDiv (rh, 100.0)
+    ser.Position (0, 7)
+    ser.Str (string("Humidity: "))
+    ser.Str(fs.FloatToString (rh))
+    ser.Char ("%")
+    ser.Chars (32, 10)
+
+PUB ReadRH_Int | rh
+
+    rh := si7021.Humidity
+    ser.Position (0, 7)
+    ser.Str (string("Humidity: "))
+    DispDec (rh)
+    ser.Char ("%")
 
 PUB ReadTemp_Float | temp
 
@@ -68,6 +99,7 @@ PUB ReadTemp_Float | temp
     ser.Position (0, 6)
     ser.Str (string("Temperature: "))
     ser.Str(fs.FloatToString (temp))
+    ser.Char (lookupz(_temp_scale: "C", "F"))
     ser.Chars (32, 10)
 
 PUB ReadTemp_Int | temp
@@ -75,13 +107,14 @@ PUB ReadTemp_Int | temp
     temp := si7021.Temperature
     ser.Position (0, 6)
     ser.Str (string("Temperature: "))
-    DispTemp (temp)
+    DispDec (temp)
+    ser.Char (lookupz(_temp_scale: "C", "F"))
 
-PUB DispTemp(cent_deg) | temp
+PUB DispDec(centi_meas) | temp
 
-    ser.Str(int.DecPadded(cent_deg/100, 3))
+    ser.Str(int.DecPadded(centi_meas/100, 3))
     ser.Char(".")
-    ser.Str(int.DecZeroed(cent_deg//100, 2))
+    ser.Str(int.DecZeroed(centi_meas//100, 2))
     ser.Char (ser#CE)
 
 PUB Setup

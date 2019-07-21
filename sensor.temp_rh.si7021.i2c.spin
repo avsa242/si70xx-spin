@@ -20,8 +20,12 @@ CON
     DEF_HZ            = 400_000
     I2C_MAX_FREQ      = core#I2C_MAX_FREQ
 
+    SCALE_C = 0
+    SCALE_F = 1
+
 VAR
 
+    byte _temp_scale
 
 OBJ
 
@@ -58,6 +62,13 @@ PUB FirmwareRev
 '       $20: Version 2.0
     readReg( core#RD_FIRMWARE_REV, 1, @result)
 
+PUB Humidity | tmp
+' Read humidity
+'   Returns: Relative Humidity, in hundreths of a percent
+    tmp := result := 0
+    readReg(core#MEAS_RH_NOHOLD, 2, @result)
+    result := ((125_00 * result) / 65536) - 6_00
+
 PUB PartID | tmp[2]
 ' Read the Part number portion of the serial number
 '   Returns:
@@ -72,6 +83,19 @@ PUB Reset
 
     writeReg(core#RESET, 0, 0)
     time.MSleep (15)
+
+PUB Scale(temp_scale)
+' Set scale of temperature data returned by Temperature method
+'   Valid values:
+'       SCALE_C (0): Celsius
+'       SCALE_F (1): Fahrenheit
+'   Any other value returns the current setting
+    case temp_scale
+        SCALE_F, SCALE_C:
+            _temp_scale := temp_scale
+            return _temp_scale
+        OTHER:
+            return _temp_scale
 
 PUB SN(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
@@ -94,11 +118,31 @@ PUB Temperature | tmp
     tmp := result := 0
     readReg(core#MEAS_TEMP_HOLD, 2, @result)
     result := ((175_72 * result) / 65536) - 46_85
+    case _temp_scale
+        SCALE_F:
+            if result > 0
+                result := result * 9 / 5 + 32_00
+            else
+                result := 32_00 - (||result * 9 / 5)
+        OTHER:
+            return result
 
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr
-    ackbit := 0
     case reg
+        core#MEAS_RH_NOHOLD:
+            cmd_packet.byte[0] := SLAVE_WR
+            cmd_packet.byte[1] := reg
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 2)
+            i2c.Wait (SLAVE_RD)
+            repeat tmp from nr_bytes-1 to 0
+                if tmp > 0
+                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                else
+                    byte[buff_addr][tmp] := i2c.Read (TRUE)
+            i2c.Stop
+
         core#MEAS_TEMP_HOLD:' READS INTERMITTENT, BYTE ORDER REVERSED
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
@@ -125,8 +169,8 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
                     byte[buff_addr][tmp] := i2c.Read (FALSE)
                 else
                     byte[buff_addr][tmp] := i2c.Read (TRUE)
-
             i2c.Stop
+
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg.byte[1]
