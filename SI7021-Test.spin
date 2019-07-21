@@ -5,7 +5,7 @@
     Description: Test of the Si70xx driver
     Copyright (c) 2019
     Started Jul 20, 2019
-    Updated Jul 20, 2019
+    Updated Jul 21, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -17,38 +17,79 @@ CON
 
     LED         = cfg#LED1
 
+    SCL_PIN     = 28
+    SDA_PIN     = 29
+    I2C_HZ      = 400_000
+
 OBJ
 
-    cfg   : "core.con.boardcfg.flip"
-    ser   : "com.serial.terminal"
-    time  : "time"
-    si7021: "sensor.temp_rh.si7021.i2c"
+    cfg     : "core.con.boardcfg.flip"
+    ser     : "com.serial.terminal"
+    time    : "time"
+    si7021  : "sensor.temp_rh.si7021.i2c"
+    int     : "string.integer"
+    math    : "tiny.math.float"
+    fs      : "string.float"
 
 VAR
 
     byte _ser_cog
 
-PUB Main | sn[2], i
+PUB Main | sn[2], i, temp
 
     Setup
-'    long[@sn][0] := $DEADBEEF
-'    long[@sn][1] := $C0FFEE11
     bytefill(@sn, 0, 8)
     si7021.SN (@sn)
+    ser.Str (string("Serial number: "))
     repeat i from 7 to 0
         ser.Hex (sn.byte[i], 2)
     ser.NewLine
-    ser.Dec ( si7021.PartID)
+
+    ser.Str (string("Part ID: "))
+    ser.Dec (si7021.PartID)
     ser.NewLine
-    ser.Hex ( si7021.FirmwareRev, 2)
-    Flash (LED, 100)
+
+    ser.Str (string("Firmware rev: "))
+    ser.Hex (si7021.FirmwareRev, 2)
+
+    si7021.Reset
+    fs.SetPrecision (5)
+
+    repeat
+'        ReadTemp_Float
+        ReadTemp_Int
+        time.MSleep (100)
+
+PUB ReadTemp_Float | temp
+
+    temp := si7021.Temperature
+    temp := math.FFloat (temp)
+    temp := math.FDiv (temp, 100.0)
+    ser.Position (0, 6)
+    ser.Str (string("Temperature: "))
+    ser.Str(fs.FloatToString (temp))
+    ser.Chars (32, 10)
+
+PUB ReadTemp_Int | temp
+
+    temp := si7021.Temperature
+    ser.Position (0, 6)
+    ser.Str (string("Temperature: "))
+    DispTemp (temp)
+
+PUB DispTemp(cent_deg) | temp
+
+    ser.Str(int.DecPadded(cent_deg/100, 3))
+    ser.Char(".")
+    ser.Str(int.DecZeroed(cent_deg//100, 2))
+    ser.Char (ser#CE)
 
 PUB Setup
 
     repeat until _ser_cog := ser.Start (115_200)
     ser.Clear
     ser.Str(string("Serial terminal started", ser#NL))
-    if si7021.Start
+    if si7021.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
         ser.Str (string("Si7021 driver started", ser#NL, ser#LF))
     else
         ser.Str (string("Si7021 driver failed to start - halting", ser#NL, ser#LF))

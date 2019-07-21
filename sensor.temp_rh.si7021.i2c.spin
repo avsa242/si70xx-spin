@@ -5,7 +5,7 @@
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2019
     Started Jul 20, 2019
-    Updated Jul 20, 2019
+    Updated Jul 21, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -41,7 +41,7 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31)
         if I2C_HZ =< core#I2C_MAX_FREQ
             if okay := i2c.setupx (SCL_PIN, SDA_PIN, I2C_HZ)    'I2C Object Started?
-                time.MSleep (80)
+                time.MSleep (core#TPU)                          ' Wait tPU ms for startup
                 if i2c.present (SLAVE_WR)                       'Response from device?
                     return okay
 
@@ -68,6 +68,11 @@ PUB PartID | tmp[2]
     SN(@tmp)
     return tmp.byte[3]
 
+PUB Reset
+
+    writeReg(core#RESET, 0, 0)
+    time.MSleep (15)
+
 PUB SN(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
     longfill(@sna, 0, 2)
@@ -83,26 +88,52 @@ PUB SN(buff_addr) | sna[2], snb[2]
     byte[buff_addr][6] := sna.byte[2]
     byte[buff_addr][7] := sna.byte[0]
 
+PUB Temperature | tmp
+' Read temperature
+'   Returns: Temperature, in centidegrees Celsius
+    tmp := result := 0
+    readReg(core#MEAS_TEMP_HOLD, 2, @result)
+    result := ((175_72 * result) / 65536) - 46_85
 
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr
-    cmd_packet.byte[0] := SLAVE_WR
-    case reg                                                    'Basic register validation
-        $00..$FF:                                               ' Consult your device's datasheet!
+    ackbit := 0
+    case reg
+        core#MEAS_TEMP_HOLD:' READS INTERMITTENT, BYTE ORDER REVERSED
+            cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.start
-            i2c.wr_block (@cmd_packet, 2)
-            i2c.start
-            i2c.write (SLAVE_RD)
-            i2c.rd_block (buff_addr, nr_bytes, TRUE)
-            i2c.stop
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 2)
+            i2c.Start
+            i2c.Write (SLAVE_RD)
+            time.MSleep (11)
+            repeat tmp from nr_bytes-1 to 0
+                if tmp > 0
+                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                else
+                    byte[buff_addr][tmp] := i2c.Read (TRUE)
+            i2c.Stop
+
+        core#MEAS_TEMP_NOHOLD:
+            cmd_packet.byte[0] := SLAVE_WR
+            cmd_packet.byte[1] := reg
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 2)
+            i2c.Wait (SLAVE_RD)
+            repeat tmp from nr_bytes-1 to 0
+                if tmp > 0
+                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                else
+                    byte[buff_addr][tmp] := i2c.Read (TRUE)
+
+            i2c.Stop
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
+            cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg.byte[1]
             cmd_packet.byte[2] := reg.byte[0]
             i2c.Start
             i2c.Wr_Block (@cmd_packet, 3)
-            i2c.Start
-            i2c.Write (SLAVE_RD)
+            i2c.Wait (SLAVE_RD)
             i2c.Rd_Block (buff_addr, nr_bytes, FALSE)
             i2c.Stop
         OTHER:
@@ -111,14 +142,11 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 PRI writeReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Write num_bytes to the slave device from the address stored in buff_addr
     case reg                                                    'Basic register validation
-        $00..$FF:                                               ' Consult your device's datasheet!
-            cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
-            i2c.start
-            i2c.wr_block (@cmd_packet, 2)
-            repeat tmp from 0 to nr_bytes-1
-                i2c.write (byte[buff_addr][tmp])
-            i2c.stop
+        core#RESET:
+            i2c.Start
+            i2c.Write (SLAVE_WR)
+            i2c.Write (reg)
+            i2c.Stop
         OTHER:
             return
 
