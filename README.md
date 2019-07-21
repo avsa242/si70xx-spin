@@ -9,6 +9,8 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 * Reads 64-bit serial number from device
 * Reads 8-bit part number from device
 * Reads firmware version from device
+* Reads temperature in centi-degrees (scale can be set to Fahrenheit or Celsius)
+* Reads relative humidity in hundreths of a percent
 
 ## Requirements
 
@@ -21,7 +23,7 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 ## TODO
 
 - [x] Read firmware rev
-- [ ] Read Temp/humidity
+- [x] Read Temp/humidity
 - [ ] Heater control
 - [ ] Measurement resolution control
 - [ ] Implement optional CRC checking on read data
