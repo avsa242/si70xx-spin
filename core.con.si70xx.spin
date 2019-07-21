@@ -1,11 +1,11 @@
 {
     --------------------------------------------
-    Filename: core.con.si7021.spin
+    Filename: core.con.si70xx.spin
     Author: Jesse Burt
     Description: Low-level constants
     Copyright (c) 2019
     Started Jul 20, 2019
-    Updated Jul 20, 2019
+    Updated Jul 21, 2019
     See end of file for terms of use.
     --------------------------------------------
 }

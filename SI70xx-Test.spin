@@ -1,6 +1,6 @@
 {
     --------------------------------------------
-    Filename: SI7021-Test.spin
+    Filename: SI70xx-Test.spin
     Author: Jesse Burt
     Description: Test of the Si70xx driver
     Copyright (c) 2019
@@ -28,7 +28,7 @@ OBJ
     cfg     : "core.con.boardcfg.flip"
     ser     : "com.serial.terminal"
     time    : "time"
-    si7021  : "sensor.temp_rh.si7021.i2c"
+    si7021  : "sensor.temp_rh.si70xx.i2c"
     int     : "string.integer"
     math    : "tiny.math.float"
     fs      : "string.float"

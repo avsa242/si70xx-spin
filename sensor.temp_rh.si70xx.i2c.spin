@@ -1,6 +1,6 @@
 {
     --------------------------------------------
-    Filename: sensor.temp_rh.si7021.i2c.spin
+    Filename: sensor.temp_rh.si70xx.i2c.spin
     Author: Jesse Burt
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2019
@@ -30,7 +30,7 @@ VAR
 OBJ
 
     i2c : "com.i2c"                                             'PASM I2C Driver
-    core: "core.con.si7021.spin"                           'File containing your device's register set
+    core: "core.con.si70xx.spin"                           'File containing your device's register set
     time: "time"                                                'Basic timing functions
 
 PUB Null
