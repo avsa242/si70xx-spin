@@ -14,7 +14,9 @@ CON
 
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
+    CLK_FREQ = (_clkmode >> 6) * _xinfreq
 
+    USEC        = CLK_FREQ / 1_000_000
     LED         = cfg#LED1
 
     SCL_PIN     = 28
@@ -35,7 +37,7 @@ VAR
 
     byte _ser_cog, _temp_scale
 
-PUB Main | sn[2], i, temp
+PUB Main | sn[2], i, temp, s, e
 
     Setup
     bytefill(@sn, 0, 8)
@@ -56,20 +58,26 @@ PUB Main | sn[2], i, temp
     _temp_scale := si7021.Scale (si7021#SCALE_C)
     fs.SetPrecision (5)
 
-        ser.Position (0, 6)
-        temp := si7021.Humidity
-        ser.Dec (Temp)
-        time.MSleep (100)
-
     repeat
 {' Display measurements using floating-point math
+        s := cnt
         ReadTemp_Float
         ReadRH_Float
+        e := cnt-s
+        ser.NewLine
+        ser.Dec (e/USEC)
+        ser.Str (string(" uSec"))
+        time.MSleep (100)
 }
 
 ' Display measurements using fixed-point math
+        s := cnt
         ReadTemp_Int
         ReadRH_Int
+        e := cnt-s
+        ser.NewLine
+        ser.Dec (e/USEC)
+        ser.Str (string(" uSec"))
         time.MSleep (100)
 
 PUB ReadRH_Float | rh

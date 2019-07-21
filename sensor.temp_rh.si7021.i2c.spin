@@ -116,7 +116,7 @@ PUB Temperature | tmp
 ' Read temperature
 '   Returns: Temperature, in centidegrees Celsius
     tmp := result := 0
-    readReg(core#MEAS_TEMP_HOLD, 2, @result)
+    readReg(core#MEAS_TEMP_NOHOLD, 2, @result)
     result := ((175_72 * result) / 65536) - 46_85
     case _temp_scale
         SCALE_F:
