@@ -28,7 +28,7 @@ OBJ
     cfg     : "core.con.boardcfg.flip"
     ser     : "com.serial.terminal"
     time    : "time"
-    si7021  : "sensor.temp_rh.si70xx.i2c"
+    si70xx  : "sensor.temp_rh.si70xx.i2c"
     int     : "string.integer"
     math    : "tiny.math.float"
     fs      : "string.float"
@@ -41,23 +41,22 @@ PUB Main | sn[2], i, temp, s, e
 
     Setup
     bytefill(@sn, 0, 8)
-    si7021.SN (@sn)
+    si70xx.SN (@sn)
     ser.Str (string("Serial number: "))
     repeat i from 7 to 0
         ser.Hex (sn.byte[i], 2)
     ser.NewLine
 
     ser.Str (string("Part ID: "))
-    ser.Dec (si7021.PartID)
+    ser.Dec (si70xx.PartID)
     ser.NewLine
 
     ser.Str (string("Firmware rev: "))
-    ser.Hex (si7021.FirmwareRev, 2)
+    ser.Hex (si70xx.FirmwareRev, 2)
 
-    si7021.Reset
-    _temp_scale := si7021.Scale (si7021#SCALE_C)
+    _temp_scale := si70xx.Scale (si70xx#SCALE_C)
     fs.SetPrecision (5)
-
+    si70xx.Heater (FALSE)
     repeat
 {' Display measurements using floating-point math
         s := cnt
@@ -82,7 +81,7 @@ PUB Main | sn[2], i, temp, s, e
 
 PUB ReadRH_Float | rh
 
-    rh := si7021.Humidity
+    rh := si70xx.Humidity
     rh := math.FFloat (rh)
     rh := math.FDiv (rh, 100.0)
     ser.Position (0, 7)
@@ -93,7 +92,7 @@ PUB ReadRH_Float | rh
 
 PUB ReadRH_Int | rh
 
-    rh := si7021.Humidity
+    rh := si70xx.Humidity
     ser.Position (0, 7)
     ser.Str (string("Humidity: "))
     DispDec (rh)
@@ -101,7 +100,7 @@ PUB ReadRH_Int | rh
 
 PUB ReadTemp_Float | temp
 
-    temp := si7021.Temperature
+    temp := si70xx.Temperature
     temp := math.FFloat (temp)
     temp := math.FDiv (temp, 100.0)
     ser.Position (0, 6)
@@ -112,7 +111,7 @@ PUB ReadTemp_Float | temp
 
 PUB ReadTemp_Int | temp
 
-    temp := si7021.Temperature
+    temp := si70xx.Temperature
     ser.Position (0, 6)
     ser.Str (string("Temperature: "))
     DispDec (temp)
@@ -130,11 +129,11 @@ PUB Setup
     repeat until _ser_cog := ser.Start (115_200)
     ser.Clear
     ser.Str(string("Serial terminal started", ser#NL))
-    if si7021.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
+    if si70xx.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
         ser.Str (string("Si7021 driver started", ser#NL, ser#LF))
     else
         ser.Str (string("Si7021 driver failed to start - halting", ser#NL, ser#LF))
-        si7021.Stop
+        si70xx.Stop
         time.MSleep (500)
         ser.Stop
 

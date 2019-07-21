@@ -24,8 +24,20 @@ CON
     MEAS_TEMP_NOHOLD    = $F3
     READ_PREV_TEMP      = $E0
     RESET               = $FE
+
     WR_RH_T_USER1       = $E6
+    WR_RH_T_USER1_MASK  = $FF
+
     RD_RH_T_USER1       = $E7
+    RD_RH_T_USER1_MASK  = $FF
+        FLD_RES_LSB     = 0
+        FLD_HTRE        = 2
+        FLD_RES_MSB     = 7
+        BITS_RES        = %1000_0001
+        MASK_RES_LSB    = RD_RH_T_USER1_MASK ^ (1 << FLD_RES_LSB)
+        MASK_HTRE       = RD_RH_T_USER1_MASK ^ (1 << FLD_HTRE)
+        MASK_RES_MSB    = RD_RH_T_USER1_MASK ^ (1 << FLD_RES_MSB)
+
     WR_HEATER           = $51
     RD_HEATER           = $11
     RD_SERIALNUM_1      = $FA0F

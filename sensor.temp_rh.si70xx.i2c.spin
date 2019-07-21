@@ -47,6 +47,7 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
             if okay := i2c.setupx (SCL_PIN, SDA_PIN, I2C_HZ)    'I2C Object Started?
                 time.MSleep (core#TPU)                          ' Wait tPU ms for startup
                 if i2c.present (SLAVE_WR)                       'Response from device?
+                    Reset
                     return okay
 
     return FALSE                                                'If we got here, something went wrong
@@ -61,6 +62,22 @@ PUB FirmwareRev
 '       $FF: Version 1.0
 '       $20: Version 2.0
     readReg( core#RD_FIRMWARE_REV, 1, @result)
+
+PUB Heater(enabled) | tmp
+' Enable the on-chip heater
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+    readReg(core#RD_RH_T_USER1, 1, @tmp)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_HTRE
+        OTHER:
+            result := tmp >> core#FLD_HTRE
+            return (result & %1) * TRUE
+
+    tmp &= core#MASK_HTRE
+    tmp := (tmp | enabled) & core#RD_RH_T_USER1
+    tmp := enabled
+    writeReg(core#WR_RH_T_USER1, 1, @tmp)
 
 PUB Humidity | tmp
 ' Read humidity
@@ -80,7 +97,7 @@ PUB PartID | tmp[2]
     return tmp.byte[3]
 
 PUB Reset
-
+' Perform soft-reset
     writeReg(core#RESET, 0, 0)
     time.MSleep (15)
 
@@ -171,6 +188,15 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
                     byte[buff_addr][tmp] := i2c.Read (TRUE)
             i2c.Stop
 
+        core#RD_RH_T_USER1, core#RD_HEATER:
+            cmd_packet.byte[0] := SLAVE_WR
+            cmd_packet.byte[1] := reg
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 2)
+            i2c.Wait (SLAVE_RD)
+            i2c.Rd_Block (buff_addr, nr_bytes, TRUE)
+            i2c.Stop
+
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg.byte[1]
@@ -190,6 +216,13 @@ PRI writeReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
             i2c.Start
             i2c.Write (SLAVE_WR)
             i2c.Write (reg)
+            i2c.Stop
+        core#WR_RH_T_USER1, core#WR_HEATER:
+            cmd_packet.byte[0] := SLAVE_WR
+            cmd_packet.byte[1] := reg
+            cmd_packet.byte[2] := byte[buff_addr][0]
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 3)
             i2c.Stop
         OTHER:
             return
