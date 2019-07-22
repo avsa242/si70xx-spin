@@ -37,6 +37,7 @@ CON
         MASK_RES_LSB    = RD_RH_T_USER1_MASK ^ (1 << FLD_RES_LSB)
         MASK_HTRE       = RD_RH_T_USER1_MASK ^ (1 << FLD_HTRE)
         MASK_RES_MSB    = RD_RH_T_USER1_MASK ^ (1 << FLD_RES_MSB)
+        MASK_RES        = MASK_RES_LSB | MASK_RES_MSB
 
     WR_HEATER           = $51
     RD_HEATER           = $11

@@ -12,6 +12,7 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 * Reads temperature in centi-degrees (scale can be set to Fahrenheit or Celsius)
 * Reads relative humidity in hundreths of a percent
 * Can enable/disable the on-chip heater
+* Can set sensor resolution, in bits
 
 ## Requirements
 
@@ -26,6 +27,6 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 - [x] Read firmware rev
 - [x] Read Temp/humidity
 - [x] Heater control
-- [ ] Measurement resolution control
+- [x] Measurement resolution control
 - [ ] Implement optional CRC checking on read data
 

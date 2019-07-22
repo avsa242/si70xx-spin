@@ -57,6 +57,8 @@ PUB Main | sn[2], i, temp, s, e
     _temp_scale := si70xx.Scale (si70xx#SCALE_C)
     fs.SetPrecision (5)
     si70xx.Heater (FALSE)
+    si70xx.ADCRes (12_14)
+
     repeat
 {' Display measurements using floating-point math
         s := cnt

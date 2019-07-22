@@ -56,6 +56,32 @@ PUB Stop
 
     i2c.terminate
 
+PUB ADCRes(bits) | tmp
+' Set resolution of readings, in bits
+'   Valid values:
+'                   RH  Temp
+'       12_14:      12  14 bits
+'       8_12:       8   12
+'       10_13:      10  13
+'       11_11:      11  11
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The underscore in the setting isn't necessary - it only serves as a visual aid to separate the two fields
+    tmp := 0
+    readReg(core#RD_RH_T_USER1, 1, @tmp)
+    case bits
+        12_14, 8_12, 10_13, 11_11:
+            bits := lookdownz(bits: 12_14, 8_12, 10_13, 11_11)
+            bits := lookupz(bits: $00, $01, $80, $81)
+
+        OTHER:
+            result := tmp & core#BITS_RES
+            result := lookdownz(result: $00, $01, $80, $81)
+            return lookupz(result: 12_14, 8_12, 10_13, 11_11)
+
+    tmp &= core#MASK_RES
+    tmp := (tmp | bits)
+    writeReg(core#WR_RH_T_USER1, 1, @tmp)
+
 PUB FirmwareRev
 ' Read sensor internal firmware revision
 '   Returns:
