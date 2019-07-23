@@ -1,5 +1,5 @@
 # si70xx-spin 
----------------
+-------------
 
 This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperature/humidity sensors.
 
@@ -11,7 +11,7 @@ This is a P8X32A/Propeller driver object for Silicon Labs Si70xx series temperat
 * Reads firmware version from device
 * Reads temperature in centi-degrees (scale can be set to Fahrenheit or Celsius)
 * Reads relative humidity in hundreths of a percent
-* Can enable/disable the on-chip heater
+* Can enable/disable the on-chip heater, and set drive strength/current level
 * Can set sensor resolution, in bits
 
 ## Requirements

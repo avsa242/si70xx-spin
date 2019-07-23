@@ -175,7 +175,7 @@ PUB Temperature | tmp
 ' Read temperature
 '   Returns: Temperature, in centidegrees Celsius
     tmp := result := 0
-    readReg(core#MEAS_TEMP_NOHOLD, 2, @result)
+    readReg(core#READ_PREV_TEMP, 2, @result)
     result := ((175_72 * result) / 65536) - 46_85
     case _temp_scale
         SCALE_F:
@@ -189,6 +189,19 @@ PUB Temperature | tmp
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr
     case reg
+        core#READ_PREV_TEMP:
+            cmd_packet.byte[0] := SLAVE_WR
+            cmd_packet.byte[1] := reg
+            i2c.Start
+            i2c.Wr_Block (@cmd_packet, 2)
+            i2c.Wait (SLAVE_RD)
+            repeat tmp from nr_bytes-1 to 0
+                if tmp > 0
+                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                else
+                    byte[buff_addr][tmp] := i2c.Read (TRUE)
+            i2c.Stop
+
         core#MEAS_RH_NOHOLD:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
