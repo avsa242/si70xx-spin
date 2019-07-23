@@ -60,7 +60,7 @@ PUB ADCRes(bits) | tmp
 ' Set resolution of readings, in bits
 '   Valid values:
 '                   RH  Temp
-'       12_14:      12  14 bits
+'      *12_14:      12  14 bits
 '       8_12:       8   12
 '       10_13:      10  13
 '       11_11:      11  11
@@ -91,7 +91,7 @@ PUB FirmwareRev
 
 PUB Heater(enabled) | tmp
 ' Enable the on-chip heater
-'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Valid values: TRUE (-1 or 1), *FALSE (0)
     readReg(core#RD_RH_T_USER1, 1, @tmp)
     case ||enabled
         0, 1:
@@ -104,6 +104,22 @@ PUB Heater(enabled) | tmp
     tmp := (tmp | enabled) & core#RD_RH_T_USER1
     tmp := enabled
     writeReg(core#WR_RH_T_USER1, 1, @tmp)
+
+PUB HeaterCurrent(mA) | tmp
+' Set heater current, in milliamperes
+'   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
+'   Any other value polls the chip and returns the current setting
+'   NOTE: Values are approximate, and typical
+    readReg(core#RD_HEATER, 1, @tmp)
+    case mA
+        3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94:
+            mA := lookdownz(mA: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+        OTHER:
+            tmp &= core#BITS_HEATER
+            return lookupz(tmp: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+
+    mA &= core#BITS_HEATER
+    writeReg(core#WR_HEATER, 1, @mA)
 
 PUB Humidity | tmp
 ' Read humidity
@@ -130,7 +146,7 @@ PUB Reset
 PUB Scale(temp_scale)
 ' Set scale of temperature data returned by Temperature method
 '   Valid values:
-'       SCALE_C (0): Celsius
+'      *SCALE_C (0): Celsius
 '       SCALE_F (1): Fahrenheit
 '   Any other value returns the current setting
     case temp_scale
