@@ -32,6 +32,7 @@ OBJ
     i2c : "com.i2c"                                             'PASM I2C Driver
     core: "core.con.si70xx.spin"                           'File containing your device's register set
     time: "time"                                                'Basic timing functions
+    crc : "math.crc"
 
 PUB Null
 ''This is not a top-level object
@@ -126,7 +127,10 @@ PUB Humidity | tmp
 '   Returns: Relative Humidity, in hundreths of a percent
     tmp := result := 0
     readReg(core#MEAS_RH_NOHOLD, 2, @result)
+'    if result.byte[3] == 1
+'        return $E000_000C
     result := ((125_00 * result) / 65536) - 6_00
+    return result
 
 PUB PartID | tmp[2]
 ' Read the Part number portion of the serial number
@@ -186,7 +190,7 @@ PUB Temperature | tmp
         OTHER:
             return result
 
-PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
+PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 '' Read num_bytes from the slave device into the address stored in buff_addr
     case reg
         core#READ_PREV_TEMP:
@@ -208,14 +212,18 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
             i2c.Start
             i2c.Wr_Block (@cmd_packet, 2)
             i2c.Wait (SLAVE_RD)
-            repeat tmp from nr_bytes-1 to 0
+            repeat tmp from nr_bytes-1 to 0' to nr_bytes-1' to 0
+'                rt.byte[tmp] := i2c.Read (FALSE)
                 if tmp > 0
                     byte[buff_addr][tmp] := i2c.Read (FALSE)
                 else
                     byte[buff_addr][tmp] := i2c.Read (TRUE)
+            crc_in := i2c.Read (TRUE)
+'            if crc_in == crc.SiLabsCRC8 (buff_addr, 2)'data, len)
+'                byte[buff_addr][3] := 1
             i2c.Stop
 
-        core#MEAS_TEMP_HOLD:' READS INTERMITTENT, BYTE ORDER REVERSED
+        core#MEAS_TEMP_HOLD:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
             i2c.Start

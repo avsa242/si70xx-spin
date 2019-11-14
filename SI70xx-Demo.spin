@@ -32,6 +32,7 @@ OBJ
     int     : "string.integer"
     math    : "tiny.math.float"
     fs      : "string.float"
+    crc     : "math.crc"
 
 VAR
 
@@ -92,14 +93,18 @@ PUB ReadRH_Float | rh
     ser.Char ("%")
     ser.Chars (32, 10)
 
-PUB ReadRH_Int | rh
+PUB ReadRH_Int | rh, rht
 
     rh := si70xx.Humidity
     ser.Position (0, 7)
     ser.Str (string("Humidity: "))
     DispDec (rh)
     ser.Char ("%")
-
+'    ser.Hex (rh, 8)
+'    rht := rh & $FFFF
+'    ser.Char (" ")
+'    ser.Hex ( crc.SiLabsCRC8 (@rht, 2), 8)
+'76b2 == BC
 PUB ReadTemp_Float | temp
 
     temp := si70xx.Temperature
