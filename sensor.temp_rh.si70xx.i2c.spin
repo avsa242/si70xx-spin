@@ -49,7 +49,8 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
                 time.MSleep (core#TPU)                          ' Wait tPU ms for startup
                 if i2c.present (SLAVE_WR)                       'Response from device?
                     Reset
-                    return okay
+                    if lookdown(deviceid{}: $0D, $14, $15, $00, $FF)
+                        return okay
 
     return FALSE                                                'If we got here, something went wrong
 
@@ -82,6 +83,16 @@ PUB ADCRes(bits) | tmp
     tmp &= core#MASK_RES
     tmp := (tmp | bits)
     writeReg(core#WR_RH_T_USER1, 1, @tmp)
+
+PUB DeviceID{} | tmp[2]
+' Read the Part number portion of the serial number
+'   Returns:
+'       $00/$FF: Engineering samples
+'       $0D (13): Si7013
+'       $14 (20): Si7020
+'       $15 (21): Si7021
+    SN(@tmp)
+    return tmp.byte[4]
 
 PUB FirmwareRev
 ' Read sensor internal firmware revision
@@ -131,16 +142,6 @@ PUB Humidity | tmp
 '        return $E000_000C
     result := ((125_00 * result) / 65536) - 6_00
     return result
-
-PUB PartID | tmp[2]
-' Read the Part number portion of the serial number
-'   Returns:
-'       $00/$FF: Engineering samples
-'       $0D (13): Si7013
-'       $14 (20): Si7020
-'       $15 (21): Si7021
-    SN(@tmp)
-    return tmp.byte[4]
 
 PUB Reset
 ' Perform soft-reset

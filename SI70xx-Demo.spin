@@ -3,9 +3,9 @@
     Filename: SI70xx-Demo.spin
     Author: Jesse Burt
     Description: Simple demo of the Si70xx driver
-    Copyright (c) 2019
+    Copyright (c) 2020
     Started Jul 20, 2019
-    Updated Jul 21, 2019
+    Updated Aug 8, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -49,7 +49,7 @@ PUB Main | sn[2], i, temp, s, e
     ser.NewLine
 
     ser.Str (string("Part ID: "))
-    ser.Dec (si70xx.PartID)
+    ser.Dec (si70xx.deviceid)
     ser.NewLine
 
     ser.Str (string("Firmware rev: "))
