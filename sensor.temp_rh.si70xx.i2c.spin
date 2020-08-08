@@ -148,19 +148,6 @@ PUB Reset
     writeReg(core#RESET, 0, 0)
     time.MSleep (15)
 
-PUB Scale(temp_scale)
-' Set scale of temperature data returned by Temperature method
-'   Valid values:
-'      *SCALE_C (0): Celsius
-'       SCALE_F (1): Fahrenheit
-'   Any other value returns the current setting
-    case temp_scale
-        SCALE_F, SCALE_C:
-            _temp_scale := temp_scale
-            return _temp_scale
-        OTHER:
-            return _temp_scale
-
 PUB SerialNum(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
     longfill(@sna, 0, 4)
@@ -189,6 +176,19 @@ PUB Temperature | tmp
                 result := 32_00 - (||result * 9 / 5)
         OTHER:
             return result
+
+PUB TempScale(temp_scale)
+' Set scale of temperature data returned by Temperature method
+'   Valid values:
+'      *SCALE_C (0): Celsius
+'       SCALE_F (1): Fahrenheit
+'   Any other value returns the current setting
+    case temp_scale
+        SCALE_F, SCALE_C:
+            _temp_scale := temp_scale
+            return _temp_scale
+        OTHER:
+            return _temp_scale
 
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 '' Read num_bytes from the slave device into the address stored in buff_addr
