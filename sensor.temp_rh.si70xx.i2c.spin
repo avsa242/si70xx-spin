@@ -157,20 +157,21 @@ PUB SerialNum(buff_addr) | sna[2], snb[2]
     byte[buff_addr][6] := snb.byte[3]
     byte[buff_addr][7] := snb.byte[4]
 
-PUB Temperature{} | tmp
-' Read temperature
-'   Returns: Temperature, in centidegrees
-    tmp := result := 0
-    readreg(core#READ_PREV_TEMP, 2, @result)
-    result := ((175_72 * result) / 65536) - 46_85
+PUB Temperature{}: temp
+' Current Temperature, in hundredths of a degree
+'   Returns: Integer
+'   (e.g., 2105 is equivalent to 21.05 deg C)
+    temp := 0
+    readreg(core#READ_PREV_TEMP, 2, @temp)
+    temp := ((175_72 * temp) / 65536) - 46_85
     case _temp_scale
         F:
-            if result > 0
-                result := result * 9 / 5 + 32_00
+            if temp > 0
+                temp := temp * 9 / 5 + 32_00
             else
-                result := 32_00 - (||(result) * 9 / 5)
+                temp := 32_00 - (||(temp) * 9 / 5)
         OTHER:
-            return result
+            return
 
 PUB TempScale(temp_scale)
 ' Set scale of temperature data returned by Temperature method
