@@ -173,7 +173,7 @@ PUB Temperature{}: temp
         OTHER:
             return
 
-PUB TempScale(temp_scale)
+PUB TempScale(temp_scale): curr_scale
 ' Set scale of temperature data returned by Temperature method
 '   Valid values:
 '      *C (0): Celsius
@@ -182,7 +182,6 @@ PUB TempScale(temp_scale)
     case temp_scale
         F, C:
             _temp_scale := temp_scale
-            return _temp_scale
         OTHER:
             return _temp_scale
 
