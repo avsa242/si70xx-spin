@@ -116,21 +116,20 @@ PUB HeaterCurrent(mA): curr_setting
             curr_setting &= core#BITS_HEATER
             return lookupz(curr_setting: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
-PUB HeaterEnabled(enabled) | tmp
+PUB HeaterEnabled(state): curr_state
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
-    readreg(core#RD_RH_T_USER1, 1, @tmp)
-    case ||(enabled)
+'   Any other value polls the chip and returns the current setting
+    curr_state := 0
+    readreg(core#RD_RH_T_USER1, 1, @curr_state)
+    case ||(state)
         0, 1:
-            enabled := ||(enabled) << core#FLD_HTRE
+            state := ||(state) << core#FLD_HTRE
         OTHER:
-            result := tmp >> core#FLD_HTRE
-            return (result & %1) * TRUE
+            return ((curr_state >> core#FLD_HTRE) & 1) == 1
 
-    tmp &= core#MASK_HTRE
-    tmp := (tmp | enabled) & core#RD_RH_T_USER1
-    tmp := enabled
-    writereg(core#WR_RH_T_USER1, 1, @tmp)
+    state := ((curr_state & core#MASK_HTRE) | state) & core#RD_RH_T_USER1_MASK
+    writereg(core#WR_RH_T_USER1, 1, @state)
 
 PUB Humidity{} | tmp
 ' Read humidity
