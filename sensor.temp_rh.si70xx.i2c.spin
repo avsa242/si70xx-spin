@@ -3,9 +3,9 @@
     Filename: sensor.temp_rh.si70xx.i2c.spin
     Author: Jesse Burt
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
-    Copyright (c) 2019
+    Copyright (c) 2020
     Started Jul 20, 2019
-    Updated Jul 21, 2019
+    Updated Aug 8, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -140,7 +140,7 @@ PUB PartID | tmp[2]
 '       $14 (20): Si7020
 '       $15 (21): Si7021
     SN(@tmp)
-    return tmp.byte[3]
+    return tmp.byte[4]
 
 PUB Reset
 ' Perform soft-reset
@@ -162,18 +162,17 @@ PUB Scale(temp_scale)
 
 PUB SN(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
-    longfill(@sna, 0, 2)
-    longfill(@sna, 0, 2)
+    longfill(@sna, 0, 4)
     readReg(core#RD_SERIALNUM_1, 8, @sna)
     readReg(core#RD_SERIALNUM_2, 6, @snb)
-    byte[buff_addr][0] := snb.byte[4]
-    byte[buff_addr][1] := snb.byte[3]
-    byte[buff_addr][2] := snb.byte[1]
-    byte[buff_addr][3] := snb.byte[0]
-    byte[buff_addr][4] := sna.byte[6]
-    byte[buff_addr][5] := sna.byte[4]
-    byte[buff_addr][6] := sna.byte[2]
-    byte[buff_addr][7] := sna.byte[0]
+    byte[buff_addr][0] := sna.byte[0]
+    byte[buff_addr][1] := sna.byte[2]
+    byte[buff_addr][2] := sna.byte[4]
+    byte[buff_addr][3] := sna.byte[6]
+    byte[buff_addr][4] := snb.byte[0]
+    byte[buff_addr][5] := snb.byte[1]
+    byte[buff_addr][6] := snb.byte[3]
+    byte[buff_addr][7] := snb.byte[4]
 
 PUB Temperature | tmp
 ' Read temperature
