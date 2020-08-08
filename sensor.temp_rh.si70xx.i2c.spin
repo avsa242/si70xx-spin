@@ -17,9 +17,10 @@ CON
 
     DEF_SCL           = 28
     DEF_SDA           = 29
-    DEF_HZ            = 400_000
+    DEF_HZ            = 100_000
     I2C_MAX_FREQ      = core#I2C_MAX_FREQ
 
+' Temperature scales
     C = 0
     F = 1
 
@@ -34,10 +35,10 @@ OBJ
     time: "time"                                                'Basic timing functions
     crc : "math.crc"
 
-PUB Null
-''This is not a top-level object
+PUB Null{}
+' This is not a top-level object
 
-PUB Start: okay                                                 'Default to "standard" Propeller I2C pins and 400kHz
+PUB Start{}: okay                                                 'Default to "standard" Propeller I2C pins and 400kHz
 
     okay := Startx (DEF_SCL, DEF_SDA, DEF_HZ)
 
