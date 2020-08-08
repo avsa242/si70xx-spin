@@ -59,7 +59,7 @@ PUB Stop{}
 
     i2c.terminate{}
 
-PUB ADCRes(bits) | tmp
+PUB ADCRes(bits): curr_setting
 ' Set resolution of readings, in bits
 '   Valid values:
 '                   RH  Temp
@@ -69,21 +69,19 @@ PUB ADCRes(bits) | tmp
 '       11_11:      11  11
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The underscore in the setting isn't necessary - it only serves as a visual aid to separate the two fields
-    tmp := 0
-    readreg(core#RD_RH_T_USER1, 1, @tmp)
+    curr_setting := 0
+    readreg(core#RD_RH_T_USER1, 1, @curr_setting)
     case bits
         12_14, 8_12, 10_13, 11_11:
             bits := lookdownz(bits: 12_14, 8_12, 10_13, 11_11)
             bits := lookupz(bits: $00, $01, $80, $81)
 
         OTHER:
-            result := tmp & core#BITS_RES
-            result := lookdownz(result: $00, $01, $80, $81)
-            return lookupz(result: 12_14, 8_12, 10_13, 11_11)
+            curr_setting := lookdownz(curr_setting & core#BITS_RES: $00, $01, $80, $81)
+            return lookupz(curr_setting: 12_14, 8_12, 10_13, 11_11)
 
-    tmp &= core#MASK_RES
-    tmp := (tmp | bits)
-    writereg(core#WR_RH_T_USER1, 1, @tmp)
+    bits := (curr_setting & core#MASK_RES) | bits
+    writereg(core#WR_RH_T_USER1, 1, @bits)
 
 PUB DeviceID{} | tmp[2]
 ' Read the Part number portion of the serial number
