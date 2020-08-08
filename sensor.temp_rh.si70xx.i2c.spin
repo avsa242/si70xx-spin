@@ -46,17 +46,17 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31)
         if I2C_HZ =< core#I2C_MAX_FREQ
             if okay := i2c.setupx (SCL_PIN, SDA_PIN, I2C_HZ)    'I2C Object Started?
-                time.MSleep (core#TPU)                          ' Wait tPU ms for startup
-                if i2c.present (SLAVE_WR)                       'Response from device?
-                    Reset
+                time.msleep(core#TPU)                           ' wait tPU ms for startup
+                if i2c.present(SLAVE_WR)                        'Response from device?
+                    reset{}
                     if lookdown(deviceid{}: $0D, $14, $15, $00, $FF)
                         return okay
 
     return FALSE                                                'If we got here, something went wrong
 
-PUB Stop
+PUB Stop{}
 
-    i2c.terminate
+    i2c.terminate{}
 
 PUB ADCRes(bits) | tmp
 ' Set resolution of readings, in bits
@@ -69,7 +69,7 @@ PUB ADCRes(bits) | tmp
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The underscore in the setting isn't necessary - it only serves as a visual aid to separate the two fields
     tmp := 0
-    readReg(core#RD_RH_T_USER1, 1, @tmp)
+    readreg(core#RD_RH_T_USER1, 1, @tmp)
     case bits
         12_14, 8_12, 10_13, 11_11:
             bits := lookdownz(bits: 12_14, 8_12, 10_13, 11_11)
@@ -82,7 +82,7 @@ PUB ADCRes(bits) | tmp
 
     tmp &= core#MASK_RES
     tmp := (tmp | bits)
-    writeReg(core#WR_RH_T_USER1, 1, @tmp)
+    writereg(core#WR_RH_T_USER1, 1, @tmp)
 
 PUB DeviceID{} | tmp[2]
 ' Read the Part number portion of the serial number
@@ -99,14 +99,14 @@ PUB FirmwareRev
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
-    readReg(core#RD_FIRMWARE_REV, 1, @result)
+    readreg(core#RD_FIRMWARE_REV, 1, @result)
 
 PUB HeaterCurrent(mA) | tmp
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
 '   Any other value polls the chip and returns the current setting
 '   NOTE: Values are approximate, and typical
-    readReg(core#RD_HEATER, 1, @tmp)
+    readreg(core#RD_HEATER, 1, @tmp)
     case mA
         3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94:
             mA := lookdownz(mA: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
@@ -115,12 +115,12 @@ PUB HeaterCurrent(mA) | tmp
             return lookupz(tmp: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
     mA &= core#BITS_HEATER
-    writeReg(core#WR_HEATER, 1, @mA)
+    writereg(core#WR_HEATER, 1, @mA)
 
 PUB HeaterEnabled(enabled) | tmp
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
-    readReg(core#RD_RH_T_USER1, 1, @tmp)
+    readreg(core#RD_RH_T_USER1, 1, @tmp)
     case ||enabled
         0, 1:
             enabled := ||enabled << core#FLD_HTRE
@@ -131,13 +131,13 @@ PUB HeaterEnabled(enabled) | tmp
     tmp &= core#MASK_HTRE
     tmp := (tmp | enabled) & core#RD_RH_T_USER1
     tmp := enabled
-    writeReg(core#WR_RH_T_USER1, 1, @tmp)
+    writereg(core#WR_RH_T_USER1, 1, @tmp)
 
 PUB Humidity | tmp
 ' Read humidity
 '   Returns: Relative Humidity, in hundreths of a percent
     tmp := result := 0
-    readReg(core#MEAS_RH_NOHOLD, 2, @result)
+    readreg(core#MEAS_RH_NOHOLD, 2, @result)
 '    if result.byte[3] == 1
 '        return $E000_000C
     result := ((125_00 * result) / 65536) - 6_00
@@ -145,14 +145,14 @@ PUB Humidity | tmp
 
 PUB Reset
 ' Perform soft-reset
-    writeReg(core#RESET, 0, 0)
-    time.MSleep (15)
+    writereg(core#RESET, 0, 0)
+    time.msleep (15)
 
 PUB SerialNum(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
     longfill(@sna, 0, 4)
-    readReg(core#RD_SERIALNUM_1, 8, @sna)
-    readReg(core#RD_SERIALNUM_2, 6, @snb)
+    readreg(core#RD_SERIALNUM_1, 8, @sna)
+    readreg(core#RD_SERIALNUM_2, 6, @snb)
     byte[buff_addr][0] := sna.byte[0]
     byte[buff_addr][1] := sna.byte[2]
     byte[buff_addr][2] := sna.byte[4]
@@ -166,7 +166,7 @@ PUB Temperature | tmp
 ' Read temperature
 '   Returns: Temperature, in centidegrees Celsius
     tmp := result := 0
-    readReg(core#READ_PREV_TEMP, 2, @result)
+    readreg(core#READ_PREV_TEMP, 2, @result)
     result := ((175_72 * result) / 65536) - 46_85
     case _temp_scale
         SCALE_F:
@@ -196,79 +196,79 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
         core#READ_PREV_TEMP:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 2)
-            i2c.Wait (SLAVE_RD)
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 2)
+            i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0
                 if tmp > 0
-                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                    byte[buff_addr][tmp] := i2c.read(FALSE)
                 else
-                    byte[buff_addr][tmp] := i2c.Read (TRUE)
-            i2c.Stop
+                    byte[buff_addr][tmp] := i2c.read(TRUE)
+            i2c.stop{}
 
         core#MEAS_RH_NOHOLD:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 2)
-            i2c.Wait (SLAVE_RD)
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 2)
+            i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0' to nr_bytes-1' to 0
-'                rt.byte[tmp] := i2c.Read (FALSE)
+'                rt.byte[tmp] := i2c.read(FALSE)
                 if tmp > 0
-                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                    byte[buff_addr][tmp] := i2c.read(FALSE)
                 else
-                    byte[buff_addr][tmp] := i2c.Read (TRUE)
-            crc_in := i2c.Read (TRUE)
-'            if crc_in == crc.SiLabsCRC8 (buff_addr, 2)'data, len)
+                    byte[buff_addr][tmp] := i2c.read(TRUE)
+            crc_in := i2c.read(TRUE)
+'            if crc_in == crc.SiLabsCRC8(buff_addr, 2)'data, len)
 '                byte[buff_addr][3] := 1
-            i2c.Stop
+            i2c.stop{}
 
         core#MEAS_TEMP_HOLD:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 2)
-            i2c.Start
-            i2c.Write (SLAVE_RD)
-            time.MSleep (11)
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 2)
+            i2c.start{}
+            i2c.write(SLAVE_RD)
+            time.msleep(11)
             repeat tmp from nr_bytes-1 to 0
                 if tmp > 0
-                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                    byte[buff_addr][tmp] := i2c.read(FALSE)
                 else
-                    byte[buff_addr][tmp] := i2c.Read (TRUE)
-            i2c.Stop
+                    byte[buff_addr][tmp] := i2c.read(TRUE)
+            i2c.stop{}
 
         core#MEAS_TEMP_NOHOLD:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 2)
-            i2c.Wait (SLAVE_RD)
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 2)
+            i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0
                 if tmp > 0
-                    byte[buff_addr][tmp] := i2c.Read (FALSE)
+                    byte[buff_addr][tmp] := i2c.read(FALSE)
                 else
-                    byte[buff_addr][tmp] := i2c.Read (TRUE)
-            i2c.Stop
+                    byte[buff_addr][tmp] := i2c.read(TRUE)
+            i2c.stop{}
 
         core#RD_RH_T_USER1, core#RD_HEATER:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 2)
-            i2c.Wait (SLAVE_RD)
-            i2c.Rd_Block (buff_addr, nr_bytes, TRUE)
-            i2c.Stop
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 2)
+            i2c.wait(SLAVE_RD)
+            i2c.rd_block(buff_addr, nr_bytes, TRUE)
+            i2c.stop{}
 
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg.byte[1]
             cmd_packet.byte[2] := reg.byte[0]
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 3)
-            i2c.Wait (SLAVE_RD)
-            i2c.Rd_Block (buff_addr, nr_bytes, FALSE)
-            i2c.Stop
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 3)
+            i2c.wait(SLAVE_RD)
+            i2c.rd_block(buff_addr, nr_bytes, FALSE)
+            i2c.stop{}
         OTHER:
             return
 
@@ -276,17 +276,17 @@ PRI writeReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Write num_bytes to the slave device from the address stored in buff_addr
     case reg                                                    'Basic register validation
         core#RESET:
-            i2c.Start
-            i2c.Write (SLAVE_WR)
-            i2c.Write (reg)
-            i2c.Stop
+            i2c.start{}
+            i2c.write(SLAVE_WR)
+            i2c.write(reg)
+            i2c.stop{}
         core#WR_RH_T_USER1, core#WR_HEATER:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg
             cmd_packet.byte[2] := byte[buff_addr][0]
-            i2c.Start
-            i2c.Wr_Block (@cmd_packet, 3)
-            i2c.Stop
+            i2c.start{}
+            i2c.wr_block(@cmd_packet, 3)
+            i2c.stop{}
         OTHER:
             return
 
