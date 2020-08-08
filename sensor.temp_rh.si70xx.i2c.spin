@@ -100,21 +100,21 @@ PUB FirmwareRev{}
 '       $20: Version 2.0
     readreg(core#RD_FIRMWARE_REV, 1, @result)
 
-PUB HeaterCurrent(mA) | tmp
+PUB HeaterCurrent(mA): curr_setting
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
 '   Any other value polls the chip and returns the current setting
 '   NOTE: Values are approximate, and typical
-    readreg(core#RD_HEATER, 1, @tmp)
     case mA
         3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94:
             mA := lookdownz(mA: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+            mA &= core#BITS_HEATER
+            writereg(core#WR_HEATER, 1, @mA)
         OTHER:
-            tmp &= core#BITS_HEATER
-            return lookupz(tmp: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
-
-    mA &= core#BITS_HEATER
-    writereg(core#WR_HEATER, 1, @mA)
+            curr_setting := 0
+            readreg(core#RD_HEATER, 1, @curr_setting)
+            curr_setting &= core#BITS_HEATER
+            return lookupz(curr_setting: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
 PUB HeaterEnabled(enabled) | tmp
 ' Enable the on-chip heater
