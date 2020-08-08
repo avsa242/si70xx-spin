@@ -20,8 +20,8 @@ CON
     DEF_HZ            = 400_000
     I2C_MAX_FREQ      = core#I2C_MAX_FREQ
 
-    SCALE_C = 0
-    SCALE_F = 1
+    C = 0
+    F = 1
 
 VAR
 
@@ -94,7 +94,7 @@ PUB DeviceID{} | tmp[2]
     SerialNum(@tmp)
     return tmp.byte[4]
 
-PUB FirmwareRev
+PUB FirmwareRev{}
 ' Read sensor internal firmware revision
 '   Returns:
 '       $FF: Version 1.0
@@ -121,9 +121,9 @@ PUB HeaterEnabled(enabled) | tmp
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
     readreg(core#RD_RH_T_USER1, 1, @tmp)
-    case ||enabled
+    case ||(enabled)
         0, 1:
-            enabled := ||enabled << core#FLD_HTRE
+            enabled := ||(enabled) << core#FLD_HTRE
         OTHER:
             result := tmp >> core#FLD_HTRE
             return (result & %1) * TRUE
@@ -133,17 +133,15 @@ PUB HeaterEnabled(enabled) | tmp
     tmp := enabled
     writereg(core#WR_RH_T_USER1, 1, @tmp)
 
-PUB Humidity | tmp
+PUB Humidity{} | tmp
 ' Read humidity
 '   Returns: Relative Humidity, in hundreths of a percent
     tmp := result := 0
     readreg(core#MEAS_RH_NOHOLD, 2, @result)
-'    if result.byte[3] == 1
-'        return $E000_000C
     result := ((125_00 * result) / 65536) - 6_00
     return result
 
-PUB Reset
+PUB Reset{}
 ' Perform soft-reset
     writereg(core#RESET, 0, 0)
     time.msleep (15)
@@ -162,40 +160,40 @@ PUB SerialNum(buff_addr) | sna[2], snb[2]
     byte[buff_addr][6] := snb.byte[3]
     byte[buff_addr][7] := snb.byte[4]
 
-PUB Temperature | tmp
+PUB Temperature{} | tmp
 ' Read temperature
-'   Returns: Temperature, in centidegrees Celsius
+'   Returns: Temperature, in centidegrees
     tmp := result := 0
     readreg(core#READ_PREV_TEMP, 2, @result)
     result := ((175_72 * result) / 65536) - 46_85
     case _temp_scale
-        SCALE_F:
+        F:
             if result > 0
                 result := result * 9 / 5 + 32_00
             else
-                result := 32_00 - (||result * 9 / 5)
+                result := 32_00 - (||(result) * 9 / 5)
         OTHER:
             return result
 
 PUB TempScale(temp_scale)
 ' Set scale of temperature data returned by Temperature method
 '   Valid values:
-'      *SCALE_C (0): Celsius
-'       SCALE_F (1): Fahrenheit
+'      *C (0): Celsius
+'       F (1): Fahrenheit
 '   Any other value returns the current setting
     case temp_scale
-        SCALE_F, SCALE_C:
+        F, C:
             _temp_scale := temp_scale
             return _temp_scale
         OTHER:
             return _temp_scale
 
-PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
-'' Read num_bytes from the slave device into the address stored in buff_addr
-    case reg
+PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
+' Read nr_bytes from the slave device into the address stored in buff_addr
+    case reg_nr
         core#READ_PREV_TEMP:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
@@ -208,24 +206,22 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 
         core#MEAS_RH_NOHOLD:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
-            repeat tmp from nr_bytes-1 to 0' to nr_bytes-1' to 0
-'                rt.byte[tmp] := i2c.read(FALSE)
+            repeat tmp from nr_bytes-1 to 0
                 if tmp > 0
                     byte[buff_addr][tmp] := i2c.read(FALSE)
                 else
                     byte[buff_addr][tmp] := i2c.read(TRUE)
             crc_in := i2c.read(TRUE)
-'            if crc_in == crc.SiLabsCRC8(buff_addr, 2)'data, len)
-'                byte[buff_addr][3] := 1
+' XXX CRC check here
             i2c.stop{}
 
         core#MEAS_TEMP_HOLD:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.start{}
@@ -240,7 +236,7 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 
         core#MEAS_TEMP_NOHOLD:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
@@ -253,7 +249,7 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 
         core#RD_RH_T_USER1, core#RD_HEATER:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
@@ -262,8 +258,8 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
 
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg.byte[1]
-            cmd_packet.byte[2] := reg.byte[0]
+            cmd_packet.byte[1] := reg_nr.byte[1]
+            cmd_packet.byte[2] := reg_nr.byte[0]
             i2c.start{}
             i2c.wr_block(@cmd_packet, 3)
             i2c.wait(SLAVE_RD)
@@ -272,17 +268,17 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
         OTHER:
             return
 
-PRI writeReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
-'' Write num_bytes to the slave device from the address stored in buff_addr
-    case reg                                                    'Basic register validation
+PRI writeReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp
+' Write nr_bytes to the slave device from the address stored in buff_addr
+    case reg_nr                                             ' Basic register validation
         core#RESET:
             i2c.start{}
             i2c.write(SLAVE_WR)
-            i2c.write(reg)
+            i2c.write(reg_nr)
             i2c.stop{}
         core#WR_RH_T_USER1, core#WR_HEATER:
             cmd_packet.byte[0] := SLAVE_WR
-            cmd_packet.byte[1] := reg
+            cmd_packet.byte[1] := reg_nr
             cmd_packet.byte[2] := byte[buff_addr][0]
             i2c.start{}
             i2c.wr_block(@cmd_packet, 3)
