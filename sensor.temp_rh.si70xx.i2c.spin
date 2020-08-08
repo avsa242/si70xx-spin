@@ -91,7 +91,7 @@ PUB DeviceID{} | tmp[2]
 '       $0D (13): Si7013
 '       $14 (20): Si7020
 '       $15 (21): Si7021
-    SN(@tmp)
+    SerialNum(@tmp)
     return tmp.byte[4]
 
 PUB FirmwareRev
@@ -99,7 +99,7 @@ PUB FirmwareRev
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
-    readReg( core#RD_FIRMWARE_REV, 1, @result)
+    readReg(core#RD_FIRMWARE_REV, 1, @result)
 
 PUB Heater(enabled) | tmp
 ' Enable the on-chip heater
@@ -161,7 +161,7 @@ PUB Scale(temp_scale)
         OTHER:
             return _temp_scale
 
-PUB SN(buff_addr) | sna[2], snb[2]
+PUB SerialNum(buff_addr) | sna[2], snb[2]
 ' Read the 64-bit serial number of the device
     longfill(@sna, 0, 4)
     readReg(core#RD_SERIALNUM_1, 8, @sna)
