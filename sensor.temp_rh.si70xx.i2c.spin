@@ -131,13 +131,12 @@ PUB HeaterEnabled(state): curr_state
     state := ((curr_state & core#MASK_HTRE) | state) & core#RD_RH_T_USER1_MASK
     writereg(core#WR_RH_T_USER1, 1, @state)
 
-PUB Humidity{} | tmp
+PUB Humidity{}: rh
 ' Read humidity
 '   Returns: Relative Humidity, in hundreths of a percent
-    tmp := result := 0
-    readreg(core#MEAS_RH_NOHOLD, 2, @result)
-    result := ((125_00 * result) / 65536) - 6_00
-    return result
+    rh := 0
+    readreg(core#MEAS_RH_NOHOLD, 2, @rh)
+    return ((125_00 * result) / 65536) - 6_00
 
 PUB Reset{}
 ' Perform soft-reset
