@@ -1,157 +1,110 @@
 {
     --------------------------------------------
-    Filename: SI70xx-Demo.spin
+    Filename: SI70xx-Demo.spin2
     Author: Jesse Burt
-    Description: Simple demo of the Si70xx driver
+    Description: Demo of the SI70xx driver (P2 version)
     Copyright (c) 2020
-    Started Jul 20, 2019
-    Updated Aug 8, 2020
+    Started Aug 9, 2020
+    Updated Aug 9, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
-    CLK_FREQ = (_clkmode >> 6) * _xinfreq
+    _clkmode        = cfg#_clkmode
+    _xinfreq        = cfg#_xinfreq
 
-    USEC        = CLK_FREQ / 1_000_000
-    LED         = cfg#LED1
+' -- User-modifiable constants
+    LED             = cfg#LED1
+    SER_RX          = 31
+    SER_TX          = 30
+    SER_BAUD        = 115_200
 
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_HZ      = 400_000
+' I2C
+    SCL_PIN         = 28
+    SDA_PIN         = 29
+    I2C_HZ          = 400_000                             ' Max: 400_000
+' --
+
+' Temperature scale
+    C               = 0
+    F               = 1
 
 OBJ
 
     cfg     : "core.con.boardcfg.flip"
-    ser     : "com.serial.terminal"
-    time    : "time"
-    si70xx  : "sensor.temp_rh.si70xx.i2c"
+    ser     : "com.serial.terminal.ansi"
     int     : "string.integer"
-    math    : "tiny.math.float"
-    fs      : "string.float"
-    crc     : "math.crc"
+    time    : "time"
+    io      : "io"
+    si70xx  : "sensor.temp_rh.si70xx.i2c"
 
 VAR
 
-    byte _ser_cog, _temp_scale
+    long _sn[2], _fw_rev[2]
 
-PUB Main | sn[2], i, temp, s, e
+PUB Main{}
 
-    Setup
-    bytefill(@sn, 0, 8)
-    si70xx.SN (@sn)
-    ser.Str (string("Serial number: "))
-    repeat i from 7 to 0
-        ser.Hex (sn.byte[i], 2)
-    ser.NewLine
+    setup{}
 
-    ser.Str (string("Part ID: "))
-    ser.Dec (si70xx.deviceid)
-    ser.NewLine
-
-    ser.Str (string("Firmware rev: "))
-    ser.Hex (si70xx.FirmwareRev, 2)
-
-    _temp_scale := si70xx.Scale (si70xx#SCALE_C)
-    fs.SetPrecision (5)
-    si70xx.Heater (FALSE)
-    si70xx.ADCRes (12_14)
+    si70xx.heaterenabled(FALSE)                             ' Enable/Disable built-in heater
+    si70xx.tempscale(F)                                     ' Temperature scale
 
     repeat
-{' Display measurements using floating-point math
-        s := cnt
-        ReadTemp_Float
-        ReadRH_Float
-        e := cnt-s
-        ser.NewLine
-        ser.Dec (e/USEC)
-        ser.Str (string(" uSec"))
-        time.MSleep (100)
-}
+        ser.position(0, 3)
 
-' Display measurements using fixed-point math
-        s := cnt
-        ReadTemp_Int
-        ReadRH_Int
-        e := cnt-s
-        ser.NewLine
-        ser.Dec (e/USEC)
-        ser.Str (string(" uSec"))
-        time.MSleep (100)
+        ser.str(string("Temperature:       "))
+        decimaldot(si70xx.temperature{}, 100)
+        ser.newline
 
-PUB ReadRH_Float | rh
+        ser.str(string("Relative humidity: "))
+        decimaldot(si70xx.humidity{}, 100)
 
-    rh := si70xx.Humidity
-    rh := math.FFloat (rh)
-    rh := math.FDiv (rh, 100.0)
-    ser.Position (0, 7)
-    ser.Str (string("Humidity: "))
-    ser.Str(fs.FloatToString (rh))
-    ser.Char ("%")
-    ser.Chars (32, 10)
+        time.msleep (100)
 
-PUB ReadRH_Int | rh, rht
+PRI DecimalDot(scaled, divisor) | whole[4], part[4], places, tmp
+' Display a fixed-point scaled up number in decimal-dot notation - scale it back down by divisor
+'   e.g., DecimalDot (314159, 100000) would display 3.14159 on the terminal
+'   scaled: Fixed-point scaled up number
+'   divisor: Divide scaled-up number by this amount
+    whole := scaled / divisor
+    tmp := divisor
+    places := 0
 
-    rh := si70xx.Humidity
-    ser.Position (0, 7)
-    ser.Str (string("Humidity: "))
-    DispDec (rh)
-    ser.Char ("%")
-'    ser.Hex (rh, 8)
-'    rht := rh & $FFFF
-'    ser.Char (" ")
-'    ser.Hex ( crc.SiLabsCRC8 (@rht, 2), 8)
-'76b2 == BC
-PUB ReadTemp_Float | temp
+    repeat
+        tmp /= 10
+        places++
+    until tmp == 1
+    part := int.deczeroed(||(scaled // divisor), places)
 
-    temp := si70xx.Temperature
-    temp := math.FFloat (temp)
-    temp := math.FDiv (temp, 100.0)
-    ser.Position (0, 6)
-    ser.Str (string("Temperature: "))
-    ser.Str(fs.FloatToString (temp))
-    ser.Char (lookupz(_temp_scale: "C", "F"))
-    ser.Chars (32, 10)
+    ser.dec (whole)
+    ser.char (".")
+    ser.str (part)
+    ser.clearline(ser#CLR_CUR_TO_END)
 
-PUB ReadTemp_Int | temp
+PUB Setup{}
 
-    temp := si70xx.Temperature
-    ser.Position (0, 6)
-    ser.Str (string("Temperature: "))
-    DispDec (temp)
-    ser.Char (lookupz(_temp_scale: "C", "F"))
+    repeat until ser.startrxtx (SER_RX, SER_TX, 0, SER_BAUD)
+    time.msleep(30)
+    ser.clear{}
+    ser.str(string("Serial terminal started", ser#CR, ser#LF))
 
-PUB DispDec(centi_meas) | temp
-
-    ser.Str(int.DecPadded(centi_meas/100, 3))
-    ser.Char(".")
-    ser.Str(int.DecZeroed(centi_meas//100, 2))
-    ser.Char (ser#CE)
-
-PUB Setup
-
-    repeat until _ser_cog := ser.Start (115_200)
-    ser.Clear
-    ser.Str(string("Serial terminal started", ser#NL))
-    if si70xx.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.Str (string("Si7021 driver started", ser#NL, ser#LF))
+    if si70xx.startx(SCL_PIN, SDA_PIN, I2C_HZ)
+        si70xx.serialnum(@_sn)
+        case si70xx.firmwarerev{}
+            $ff:
+                _fw_rev := string("1.0")
+            $20:
+                _fw_rev := string("2.0")
+            other:
+                _fw_rev := string("???")
+        ser.printf(string("SI70xx driver (SI70%d S/N %x%x, FW rev: %s) started\n"), si70xx.deviceid{}, _sn[1], _sn[0], _fw_rev, 0, 0)
     else
-        ser.Str (string("Si7021 driver failed to start - halting", ser#NL, ser#LF))
-        si70xx.Stop
-        time.MSleep (500)
-        ser.Stop
+        ser.str(string("SI70xx driver failed to start - halting"))
+        flashled(LED, 500)
 
-PUB Flash(pin, delay_ms)
-
-    dira[pin] := 1
-    repeat
-        !outa[pin]
-        time.MSleep (delay_ms)
-
-
+#include "lib.utility.spin"
 
 DAT
 {
