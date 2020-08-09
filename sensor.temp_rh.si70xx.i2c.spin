@@ -5,7 +5,7 @@
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2020
     Started Jul 20, 2019
-    Updated Aug 8, 2020
+    Updated Aug 9, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -91,7 +91,7 @@ PUB DeviceID{} | tmp[2]
 '       $14 (20): Si7020
 '       $15 (21): Si7021
     SerialNum(@tmp)
-    return tmp.byte[4]
+    return tmp.byte[3]
 
 PUB FirmwareRev{}
 ' Read sensor internal firmware revision
@@ -148,14 +148,14 @@ PUB SerialNum(buff_addr) | sna[2], snb[2]
     longfill(@sna, 0, 4)
     readreg(core#RD_SERIALNUM_1, 8, @sna)
     readreg(core#RD_SERIALNUM_2, 6, @snb)
-    byte[buff_addr][0] := sna.byte[0]
-    byte[buff_addr][1] := sna.byte[2]
-    byte[buff_addr][2] := sna.byte[4]
-    byte[buff_addr][3] := sna.byte[6]
-    byte[buff_addr][4] := snb.byte[0]
-    byte[buff_addr][5] := snb.byte[1]
-    byte[buff_addr][6] := snb.byte[3]
-    byte[buff_addr][7] := snb.byte[4]
+    byte[buff_addr][7] := sna.byte[0]
+    byte[buff_addr][6] := sna.byte[2]
+    byte[buff_addr][5] := sna.byte[4]
+    byte[buff_addr][4] := sna.byte[6]
+    byte[buff_addr][3] := snb.byte[0]                       ' Device ID
+    byte[buff_addr][2] := snb.byte[1]
+    byte[buff_addr][1] := snb.byte[3]
+    byte[buff_addr][0] := snb.byte[4]
 
 PUB Temperature{}: temp
 ' Current Temperature, in hundredths of a degree
@@ -195,10 +195,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0
-                if tmp > 0
-                    byte[buff_addr][tmp] := i2c.read(FALSE)
-                else
-                    byte[buff_addr][tmp] := i2c.read(TRUE)
+                byte[buff_addr][tmp] := i2c.read(tmp == 0)  ' Return NAK if tmp == 0 (last byte)
             i2c.stop{}
 
         core#MEAS_RH_NOHOLD:
@@ -208,11 +205,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0
-                if tmp > 0
-                    byte[buff_addr][tmp] := i2c.read(FALSE)
-                else
-                    byte[buff_addr][tmp] := i2c.read(TRUE)
-            crc_in := i2c.read(TRUE)
+                byte[buff_addr][tmp] := i2c.read(tmp == 0)
 ' XXX CRC check here
             i2c.stop{}
 
@@ -225,10 +218,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.write(SLAVE_RD)
             time.msleep(11)
             repeat tmp from nr_bytes-1 to 0
-                if tmp > 0
-                    byte[buff_addr][tmp] := i2c.read(FALSE)
-                else
-                    byte[buff_addr][tmp] := i2c.read(TRUE)
+                byte[buff_addr][tmp] := i2c.read(tmp == 0)
             i2c.stop{}
 
         core#MEAS_TEMP_NOHOLD:
@@ -238,10 +228,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
             repeat tmp from nr_bytes-1 to 0
-                if tmp > 0
-                    byte[buff_addr][tmp] := i2c.read(FALSE)
-                else
-                    byte[buff_addr][tmp] := i2c.read(TRUE)
+                byte[buff_addr][tmp] := i2c.read(tmp == 0)
             i2c.stop{}
 
         core#RD_RH_T_USER1, core#RD_HEATER:
@@ -250,7 +237,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.start{}
             i2c.wr_block(@cmd_packet, 2)
             i2c.wait(SLAVE_RD)
-            i2c.rd_block(buff_addr, nr_bytes, TRUE)
+            i2c.rd_block(buff_addr, nr_bytes, TRUE)         ' TRUE: NAK last byte
             i2c.stop{}
 
         core#RD_SERIALNUM_1, core#RD_SERIALNUM_2, core#RD_FIRMWARE_REV:
@@ -260,7 +247,7 @@ PRI readReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp, crc_in, rt
             i2c.start{}
             i2c.wr_block(@cmd_packet, 3)
             i2c.wait(SLAVE_RD)
-            i2c.rd_block(buff_addr, nr_bytes, FALSE)
+            i2c.rd_block(buff_addr, nr_bytes, TRUE)
             i2c.stop{}
         OTHER:
             return
@@ -273,6 +260,7 @@ PRI writeReg(reg_nr, nr_bytes, buff_addr) | cmd_packet, tmp
             i2c.write(SLAVE_WR)
             i2c.write(reg_nr)
             i2c.stop{}
+
         core#WR_RH_T_USER1, core#WR_HEATER:
             cmd_packet.byte[0] := SLAVE_WR
             cmd_packet.byte[1] := reg_nr
