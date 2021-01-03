@@ -2,10 +2,11 @@
     --------------------------------------------
     Filename: sensor.temp_rh.si70xx.i2c.spin
     Author: Jesse Burt
-    Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
-    Copyright (c) 2020
+    Description: Driver for Silicon Labs Si70xx-series
+        temperature/humidity sensors
+    Copyright (c) 2021
     Started Jul 20, 2019
-    Updated Aug 9, 2020
+    Updated Jan 3, 2021
     See end of file for terms of use.
     --------------------------------------------
 }

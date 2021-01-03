@@ -1,11 +1,11 @@
 {
     --------------------------------------------
-    Filename: SI70xx-Demo.spin2
+    Filename: SI70xx-Demo.spin
     Author: Jesse Burt
-    Description: Demo of the SI70xx driver (P2 version)
-    Copyright (c) 2020
+    Description: Demo of the SI70xx driver
+    Copyright (c) 2021
     Started Aug 9, 2020
-    Updated Sep 8, 2020
+    Updated Jan 3, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
