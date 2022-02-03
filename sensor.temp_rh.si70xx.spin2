@@ -309,7 +309,7 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             i2c.wrblock_lsbf(@cmd_pkt, 3)
             i2c.wait(SLAVE_RD)
             byte[ptr_buff] := i2c.rd_byte(i2c.NAK)
-            i2c.stop() 
+            i2c.stop()
         other:
             return
 
