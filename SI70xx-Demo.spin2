@@ -2,7 +2,7 @@
     --------------------------------------------
     Filename: SI70xx-Demo.spin2
     Author: Jesse Burt
-    Description: SI70xx driver demo (
+    Description: SI70xx driver demo (P2 version)
         * Temp/RH data output
     Copyright (c) 2022
     Started Aug 9, 2020
