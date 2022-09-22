@@ -1,12 +1,11 @@
 {
     --------------------------------------------
-    Filename: sensor.temp_rh.si70xx.i2c.spin
+    Filename: sensor.temp_rh.si70xx.spin
     Author: Jesse Burt
-    Description: Driver for Silicon Labs Si70xx-series
-        temperature/humidity sensors
+    Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2022
     Started Jul 20, 2019
-    Updated May 13, 2022
+    Updated Sep 22, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -34,14 +33,14 @@ OBJ
     time: "time"                                ' timekeeping methods
     crc : "math.crc"                            ' various CRC routines
 
-PUB Null{}
+PUB null{}
 ' This is not a top-level object
 
 PUB Start{}: status
 ' Start using "standard" Propeller I2C pins and 100kHz
     return startx(DEF_SCL, DEF_SDA, DEF_HZ)
 
-PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 ' Start using custom settings
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
 }   I2C_HZ =< core#I2C_MAX_FREQ
@@ -57,11 +56,11 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
-PUB Stop{}
-
+PUB stop{}
+' Stop the driver
     i2c.deinit{}
 
-PUB ADCRes(bits): curr_adcres
+PUB adcres(bits): curr_adcres
 ' Set resolution of readings, in bits
 '   Valid values:
 '                   RH  Temp
@@ -84,7 +83,7 @@ PUB ADCRes(bits): curr_adcres
     bits := (curr_adcres & core#ADCRES_MASK) | bits
     writereg(core#WR_RH_T_USER1, 1, @bits)
 
-PUB DeviceID{}: id | tmp[2]
+PUB deviceid{}: id | tmp[2]
 ' Read the Part number portion of the serial number
 '   Returns:
 '       $00/$FF: Engineering samples
@@ -94,14 +93,14 @@ PUB DeviceID{}: id | tmp[2]
     serialnum(@tmp)
     return tmp.byte[3]
 
-PUB FirmwareRev{}: fwrev
+PUB firmwarerev{}: fwrev
 ' Read sensor internal firmware revision
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
     readreg(core#RD_FIRMWARE_REV, 1, @fwrev)
 
-PUB HeaterCurrent(htr_curr): curr_htrc
+PUB heatercurrent(htr_curr): curr_htrc
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
 '   Any other value polls the chip and returns the current setting
@@ -118,7 +117,7 @@ PUB HeaterCurrent(htr_curr): curr_htrc
             return lookupz(curr_htrc: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58,{
 }           64, 70, 76, 82, 88, 94)
 
-PUB HeaterEnabled(state): curr_state
+PUB heaterenabled(state): curr_state
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
 '   Any other value polls the chip and returns the current setting
@@ -133,23 +132,23 @@ PUB HeaterEnabled(state): curr_state
     state := ((curr_state & core#HTRE_MASK) | state) & core#RD_RH_T_USER1_MASK
     writereg(core#WR_RH_T_USER1, 1, @state)
 
-PUB Reset{}
+PUB reset{}
 ' Perform soft-reset
     writereg(core#RESET, 0, 0)
     time.msleep(15)
 
-PUB RHData{}: rh_adc
+PUB rhdata{}: rh_adc
 ' Read relative humidity ADC data
 '   Returns: u16
     rh_adc := 0
     readreg(core#MEAS_RH_NOHOLD, 2, @rh_adc)
 
-PUB RHWord2Pct(rh_word): rh
+PUB rhword2pct(rh_word): rh
 ' Convert RH ADC word to percent
 '   Returns: relative humidity, in hundredths of a percent
     return ((125_00 * rh_word) / 65536) - 6_00
 
-PUB SerialNum(ptr_buff) | snb, sna
+PUB serialnum(ptr_buff) | snb, sna
 ' Read the 64-bit serial number of the device into ptr_buff
 '   NOTE: Buffer at ptr_buff must be at least 8 bytes in length
     longfill(@sna, 0, 2)
@@ -159,13 +158,13 @@ PUB SerialNum(ptr_buff) | snb, sna
         return -1
     longmove(ptr_buff, @snb, 2)
 
-PUB TempData{}: temp_adc
+PUB tempdata{}: temp_adc
 ' Read temperature ADC data
 '   Returns: s16
     temp_adc := 0
     readreg(core#READ_PREV_TEMP, 2, @temp_adc)
 
-PUB TempWord2Deg(temp_word): temp
+PUB tempword2deg(temp_word): temp
 ' Convert thermocouple ADC word to temperature
 '   Returns: temperature, in hundredths of a degree, in chosen scale
     temp := ((175_72 * temp_word) / 65536) - 46_85
@@ -177,7 +176,7 @@ PUB TempWord2Deg(temp_word): temp
         other:
             return FALSE
 
-PRI readReg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
+PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
 ' Read nr_bytes from the slave device into ptr_buff
     case reg_nr
         core#READ_PREV_TEMP:
@@ -295,7 +294,7 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
         other:
             return
 
-PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to the slave device
     case reg_nr
         core#RESET:
@@ -315,24 +314,21 @@ PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-TERMS OF USE: MIT License
+Copyright 2022 Jesse Burt
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 }
 
