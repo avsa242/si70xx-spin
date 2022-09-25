@@ -5,7 +5,7 @@
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2022
     Started Jul 20, 2019
-    Updated Sep 22, 2022
+    Updated Sep 25, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -36,7 +36,7 @@ OBJ
 PUB null{}
 ' This is not a top-level object
 
-PUB Start{}: status
+PUB start{}: status
 ' Start using "standard" Propeller I2C pins and 100kHz
     return startx(DEF_SCL, DEF_SDA, DEF_HZ)
 
@@ -46,9 +46,9 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 }   I2C_HZ =< core#I2C_MAX_FREQ
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
             time.usleep(core#T_POR)
-            if i2c.present(SLAVE_WR)            ' check device bus presence
+            if (i2c.present(SLAVE_WR))          ' check device bus presence
                 reset{}
-                if lookdown(deviceid{}: $0D, $14, $15, $00, $FF)
+                if (lookdown(dev_id{}: $0D, $14, $15, $00, $FF))
                     return
 
     ' if this point is reached, something above failed
@@ -60,56 +60,33 @@ PUB stop{}
 ' Stop the driver
     i2c.deinit{}
 
-PUB adcres(bits): curr_adcres
-' Set resolution of readings, in bits
-'   Valid values:
-'                   RH  Temp
-'      *12_14:      12  14 bits
-'       8_12:       8   12
-'       10_13:      10  13
-'       11_11:      11  11
-'   Any other value polls the chip and returns the current setting
-    curr_adcres := 0
-    readreg(core#RD_RH_T_USER1, 1, @curr_adcres)
-    case bits
-        12_14, 8_12, 10_13, 11_11:
-            bits := lookdownz(bits: 12_14, 8_12, 10_13, 11_11)
-            bits := lookupz(bits: $00, $01, $80, $81)
-        other:
-            curr_adcres &= core#ADCRES_BITS
-            curr_adcres := lookdownz(curr_adcres: $00, $01, $80, $81)
-            return lookupz(curr_adcres: 12_14, 8_12, 10_13, 11_11)
-
-    bits := (curr_adcres & core#ADCRES_MASK) | bits
-    writereg(core#WR_RH_T_USER1, 1, @bits)
-
-PUB deviceid{}: id | tmp[2]
+PUB dev_id{}: id | tmp[2]
 ' Read the Part number portion of the serial number
 '   Returns:
 '       $00/$FF: Engineering samples
 '       $0D (13): Si7013
 '       $14 (20): Si7020
 '       $15 (21): Si7021
-    serialnum(@tmp)
+    serial_num(@tmp)
     return tmp.byte[3]
 
-PUB firmwarerev{}: fwrev
+PUB firmware_rev{}: fwrev
 ' Read sensor internal firmware revision
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
     readreg(core#RD_FIRMWARE_REV, 1, @fwrev)
 
-PUB heatercurrent(htr_curr): curr_htrc
+PUB heater_curr(curr): curr_htrc
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
 '   Any other value polls the chip and returns the current setting
 '   NOTE: Values are approximate, and typical
-    case htr_curr
+    case curr
         3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94:
-            htr_curr := lookdownz(htr_curr: 3, 9, 15, 21, 27, 33, 40, 46, 52,{
+            curr := lookdownz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52,{
 }           58, 64, 70, 76, 82, 88, 94)
-            writereg(core#WR_HEATER, 1, @htr_curr)
+            writereg(core#WR_HEATER, 1, @curr)
         other:
             curr_htrc := 0
             readreg(core#RD_HEATER, 1, @curr_htrc)
@@ -117,7 +94,7 @@ PUB heatercurrent(htr_curr): curr_htrc
             return lookupz(curr_htrc: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58,{
 }           64, 70, 76, 82, 88, 94)
 
-PUB heaterenabled(state): curr_state
+PUB heater_ena(state): curr_state
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
 '   Any other value polls the chip and returns the current setting
@@ -137,18 +114,44 @@ PUB reset{}
     writereg(core#RESET, 0, 0)
     time.msleep(15)
 
-PUB rhdata{}: rh_adc
+PUB rh_adc_res(bits): curr_res
+' Set resolution of RH readings, in bits
+'   Valid values:
+'       8, 10, 11, 12
+'   Any other value polls the chip and returns the current setting
+'   NOTE: Setting this method directly affects temperature ADC resolution also
+'   The following table shows equivalent settings for temperature:
+'       RH  Temp
+'       8   12
+'       10  13
+'       11  11
+'       12  14
+    curr_res := 0
+    readreg(core#RD_RH_T_USER1, 1, @curr_res)
+    case bits
+        8, 10, 11, 12:
+            bits := lookdownz(bits: 12, 8, 10, 11)
+            bits := lookupz(bits: $00, $01, $80, $81)
+        other:
+            curr_res &= core#ADCRES_BITS
+            curr_res := lookdownz(curr_res: $00, $01, $80, $81)
+            return lookupz(curr_res: 12, 8, 10, 11)
+
+    bits := (curr_res & core#ADCRES_MASK) | bits
+    writereg(core#WR_RH_T_USER1, 1, @bits)
+
+PUB rh_data{}: rh_adc
 ' Read relative humidity ADC data
 '   Returns: u16
     rh_adc := 0
     readreg(core#MEAS_RH_NOHOLD, 2, @rh_adc)
 
-PUB rhword2pct(rh_word): rh
+PUB rh_word2pct(rh_word): rh
 ' Convert RH ADC word to percent
 '   Returns: relative humidity, in hundredths of a percent
     return ((125_00 * rh_word) / 65536) - 6_00
 
-PUB serialnum(ptr_buff) | snb, sna
+PUB serial_num(ptr_buff) | snb, sna
 ' Read the 64-bit serial number of the device into ptr_buff
 '   NOTE: Buffer at ptr_buff must be at least 8 bytes in length
     longfill(@sna, 0, 2)
@@ -158,13 +161,39 @@ PUB serialnum(ptr_buff) | snb, sna
         return -1
     longmove(ptr_buff, @snb, 2)
 
-PUB tempdata{}: temp_adc
+PUB temp_adc_res(bits): curr_res
+' Set resolution of temperature readings, in bits
+'   Valid values:
+'       11, 12, 13, 14
+'   Any other value polls the chip and returns the current setting
+'   NOTE: Setting this method directly affects RH ADC resolution also
+'   The following table shows equivalent settings for RH:
+'       Temp    RH
+'       11      11
+'       12      8
+'       13      10
+'       14      12
+    curr_res := 0
+    readreg(core#RD_RH_T_USER1, 1, @curr_res)
+    case bits
+        11..14:
+            bits := lookdownz(bits: 14, 12, 13, 11)
+            bits := lookupz(bits: $00, $01, $80, $81)
+        other:
+            curr_res &= core#ADCRES_BITS
+            curr_res := lookdownz(curr_res: $00, $01, $80, $81)
+            return lookupz(curr_res: 12, 8, 10, 11)
+
+    bits := (curr_res & core#ADCRES_MASK) | bits
+    writereg(core#WR_RH_T_USER1, 1, @bits)
+
+PUB temp_data{}: temp_adc
 ' Read temperature ADC data
 '   Returns: s16
     temp_adc := 0
     readreg(core#READ_PREV_TEMP, 2, @temp_adc)
 
-PUB tempword2deg(temp_word): temp
+PUB temp_word2deg(temp_word): temp
 ' Convert thermocouple ADC word to temperature
 '   Returns: temperature, in hundredths of a degree, in chosen scale
     temp := ((175_72 * temp_word) / 65536) - 46_85
