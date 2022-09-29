@@ -5,7 +5,7 @@
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors (P2 version)
     Copyright (c) 2022
     Started Jul 20, 2019
-    Updated Sep 25, 2022
+    Updated Sep 29, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -65,22 +65,21 @@ PUB firmware_rev(): fwrev
 '       $20: Version 2.0
     readreg(core.RD_FIRMWARE_REV, 1, @fwrev)
 
-PUB heater_curr(curr): curr_htrc
-' Set heater current, in milliamperes
-'   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94
-'   Any other value polls the chip and returns the current setting
+PUB heater_curr(): curr
+' Get heater current
+'   Returns: milliamperes
 '   NOTE: Values are approximate, and typical
-    case curr
-        3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94:
-            curr := lookdownz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52,{
-}           58, 64, 70, 76, 82, 88, 94)
-            writereg(core.WR_HEATER, 1, @curr)
-        other:
-            curr_htrc := 0
-            readreg(core.RD_HEATER, 1, @curr_htrc)
-            curr_htrc &= core.HEATER_BITS
-            return lookupz(curr_htrc: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58,{
-}           64, 70, 76, 82, 88, 94)
+    curr := 0
+    readreg(core.RD_HEATER, 1, @curr)
+    curr &= core.HEATER_BITS
+    return lookupz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+
+PUB heater_set_curr(curr)
+' Set heater current, in milliamperes
+'   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94 (clamped to range)
+'   NOTE: Values are approximate, and typical
+    curr := 0 #> lookdownz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+    writereg(core#WR_HEATER, 1, @curr)
 
 PUB heater_ena(state): curr_state
 ' Enable the on-chip heater
