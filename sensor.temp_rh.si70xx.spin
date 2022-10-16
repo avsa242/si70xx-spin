@@ -5,7 +5,7 @@
     Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Copyright (c) 2022
     Started Jul 20, 2019
-    Updated Sep 29, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -224,7 +224,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             tmp := i2c.rdword_msbf(i2c#ACK)
             crcrd := i2c.rd_byte(i2c#NAK)
             i2c.stop{}
-            if (crcrd == crc.silabscrc8(@tmp, 2))
+            if (crcrd == crc.silabs_crc8(@tmp, 2))
                 word[ptr_buff] := tmp
             else
                 return -1
@@ -239,7 +239,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             tmp := i2c.rdword_msbf(i2c#ACK)
             crcrd := i2c.rd_byte(i2c#NAK)
             i2c.stop{}
-            if (crcrd == crc.silabscrc8(@tmp, 2))
+            if (crcrd == crc.silabs_crc8(@tmp, 2))
                 word[ptr_buff] := tmp
             else
                 return -1
@@ -252,7 +252,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             tmp := i2c.rdword_msbf(i2c#ACK)
             crcrd := i2c.rd_byte(i2c#NAK)
             i2c.stop{}
-            if (crcrd == crc.silabscrc8(@tmp, 2))
+            if (crcrd == crc.silabs_crc8(@tmp, 2))
                 word[ptr_buff] := tmp
             else
                 return -1
@@ -287,7 +287,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
                 i2c.rd_byte(i2c#ACK)            ' ignore the 1st CRC byte
                 tmp.byte[rdcnt*2] := i2c.rd_byte(i2c#ACK)
                 crcrd := i2c.rd_byte(rdcnt-- == 0)
-            if (crc.silabscrc8(@tmp, 4) == crcrd)
+            if (crc.silabs_crc8(@tmp, 4) == crcrd)
                 long[ptr_buff] := tmp
                 status := 0
             else
@@ -304,7 +304,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             repeat 2
                 tmp.word[rdcnt] := i2c.rdword_msbf(i2c#ACK)
                 crcrd := i2c.rd_byte(rdcnt-- == 0)
-            if (crcrd == crc.silabscrc8(@tmp, 4))
+            if (crcrd == crc.silabs_crc8(@tmp, 4))
                 long[ptr_buff] := tmp
             else
                 status := -1
