@@ -1,13 +1,12 @@
 {
-    --------------------------------------------
-    Filename: core.con.si70xx.spin
-    Author: Jesse Burt
-    Description: SI70xx-specific constants
-    Copyright (c) 2021
-    Started Jul 20, 2019
-    Updated May 20, 2021
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       core.con.si70xx.spin
+    Description:    SI70xx-specific constants
+    Author:         Jesse Burt
+    Started:        Jul 20, 2019
+    Updated:        Oct 2, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
@@ -49,13 +48,13 @@ CON
     RD_FIRMWARE_REV     = $84B8
 
 
-
-PUB null{}
+PUB null()
 ' This is not a top-level object
+
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

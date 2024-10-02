@@ -1,61 +1,66 @@
 {
-    --------------------------------------------
-    Filename: SI70xx-Demo.spin
-    Author: Jesse Burt
-    Description: SI70xx driver demo
+----------------------------------------------------------------------------------------------------
+    Filename:       SI70xx-Demo.spin
+    Description:    SI70xx driver demo
         * Temp/RH data output
-    Copyright (c) 2022
-    Started Aug 9, 2020
-    Updated Oct 16, 2022
-    See end of file for terms of use.
-    --------------------------------------------
-
-    Build-time symbols supported by driver:
-        -DSI70XX_I2C (default if none specified)
-        -DSI70XX_I2C_BC
+    Author:         Jesse Burt
+    Started:        Jul 21, 2019
+    Updated:        Oct 2, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
+
+' Uncomment the two lines below to use the bytecode-based I2C engine in the driver
+'#define SI70XX_I2C_BC
+'#pragma exportdef(SI70XX_I2C_BC)
+
+
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = xtal1+pll16x
+    _xinfreq    = 5_000_000
 
-' -- User-modifiable constants
-    SER_BAUD    = 115_200
-
-    { I2C configuration }
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-' --
 
 OBJ
 
-    cfg:    "boardcfg.flip"
-    sensor:  "sensor.temp_rh.si70xx"
-    ser:    "com.serial.terminal.ansi"
     time:   "time"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.temp_rh.si70xx" | SCL=28, SDA=29, I2C_FREQ=100_000
 
-PUB setup{}
 
-    ser.start(SER_BAUD)
+PUB main() | temp, tscl, rh
+
+    setup()
+
+    sensor.temp_scale(sensor.C)
+
+    repeat
+        temp := sensor.temperature()
+        tscl := lookupz(sensor.temp_scale(-2): "C", "F", "K")
+        ser.printf3(@"Temp. (deg %c): %3.3d.%02.2d\n\r",    tscl, ...
+                                                            (temp / 100), ...
+                                                            ||(temp // 100) )
+        rh := sensor.rh{}
+        ser.printf2(@"Rel. humidity (%%): %3.3d.%02.2d\n\r", (rh / 100), (rh // 100) )
+
+
+PUB setup()
+
+    ser.start()
     time.msleep(30)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
 
-    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ))
-        ser.strln(string("SI70xx driver started"))
+    if ( sensor.start() )
+        ser.strln(@"SI70xx driver started")
     else
-        ser.strln(string("SI70xx driver failed to start - halting"))
+        ser.strln(@"SI70xx driver failed to start - halting")
         repeat
 
-    sensor.temp_scale(sensor#C)
-    demo{}
-
-#include "temp_rhdemo.common.spinh"             ' code common to all temp/RH demos
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

@@ -1,42 +1,59 @@
 {
-    --------------------------------------------
-    Filename: sensor.temp_rh.si70xx.spin2
-    Author: Jesse Burt
-    Description: Driver for Silicon Labs Si70xx-series temperature/humidity sensors (P2 version)
-    Copyright (c) 2022
-    Started Jul 20, 2019
-    Updated Dec 28, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       sensor.temp_rh.si70xx.spin2
+    Description:    Driver for Silicon Labs Si70xx-series temperature/humidity sensors
+    Author:         Jesse Burt
+    Started:        Aug 9, 2020
+    Updated:        Oct 2, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
-{ pull in methods common to all Temp/RH drivers }
-#include "sensor.temp_rh.common.spin2h"
+
+#include "sensor.temp_rh.common.spin2h"         ' use code common to all temp/rh drivers
 
 CON
 
-    { I2C }
-    SLAVE_WR    = core#SLAVE_ADDR
-    SLAVE_RD    = core#SLAVE_ADDR | 1
-    DEF_HZ      = 100_000
+    { default I/O settings; these can be overridden in the parent object }
+    SCL         = 0
+    SDA         = 1
+    I2C_FREQ    = 100_000                       ' max: 400_000
+    I2C_ADDR    = 0
+
+
+    SLAVE_WR    = core.SLAVE_ADDR
+    SLAVE_RD    = core.SLAVE_ADDR | 1
+
 
 OBJ
 
-    i2c : "com.i2c"                             ' I2C engine
-    core: "core.con.si70xx"                     ' HW-specific constants
-    crc : "math.crc"                            ' various CRC routines
+    i2c:    "com.i2c"                           ' I2C engine
+    core:   "core.con.si70xx"                   ' HW-specific constants
+    crc:    "math.crc"                          ' various CRC routines
+
 
 PUB null()
 ' This is not a top-level object
 
-PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ): status
-' Start using custom settings
-    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and {
-}   I2C_HZ <= core.I2C_MAX_FREQ
-        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+
+PUB start(): status
+' Start using default I/O settings
+    return startx(SCL, SDA, I2C_FREQ)
+
+
+PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+' Start the driver with custom I/O settings
+'   SCL_PIN:    I2C clock, 0..31
+'   SDA_PIN:    I2C data, 0..31
+'   I2C_HZ:     I2C clock speed (max official specification is 400_000 but is unenforced)
+'   Returns:
+'       cog ID+1 of I2C engine on success
+'       0 on failure
+    if ( lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) )
+        if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             waitus(core.T_POR)
-            if (i2c.present(SLAVE_WR))          ' check device bus presence
+            if ( i2c.present(SLAVE_WR) )          ' check device bus presence
                 reset()
-                if (lookdown(dev_id(): $0D, $14, $15, $00, $FF))
+                if ( lookdown(dev_id(): $0D, $14, $15, $00, $FF) )
                     return
 
     ' if this point is reached, something above failed
@@ -44,9 +61,11 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ): status
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
+
 PUB stop()
 ' Stop the driver
     i2c.deinit()
+
 
 PUB dev_id(): id | tmp[2]
 ' Read the Part number portion of the serial number
@@ -58,12 +77,14 @@ PUB dev_id(): id | tmp[2]
     serial_num(@tmp)
     return tmp.byte[3]
 
+
 PUB firmware_rev(): fwrev
 ' Read sensor internal firmware revision
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
     readreg(core.RD_FIRMWARE_REV, 1, @fwrev)
+
 
 PUB heater_curr(): curr
 ' Get heater current
@@ -74,12 +95,14 @@ PUB heater_curr(): curr
     curr &= core.HEATER_BITS
     return lookupz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
+
 PUB heater_set_curr(curr)
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94 (clamped to range)
 '   NOTE: Values are approximate, and typical
     curr := 0 #> lookdownz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
-    writereg(core#WR_HEATER, 1, @curr)
+    writereg(core.WR_HEATER, 1, @curr)
+
 
 PUB heater_ena(state): curr_state
 ' Enable the on-chip heater
@@ -90,19 +113,21 @@ PUB heater_ena(state): curr_state
     case abs(state)
         0, 1:
             state := abs(state) << core.HTRE
+            state := ((curr_state & core.HTRE_MASK) | state) & core.RD_RH_T_USER1_MASK
+            writereg(core.WR_RH_T_USER1, 1, @state)
         other:
             return ((curr_state >> core.HTRE) & 1) == 1
 
-    state := ((curr_state & core.HTRE_MASK) | state) & core.RD_RH_T_USER1_MASK
-    writereg(core.WR_RH_T_USER1, 1, @state)
 
 PUB measure()
 ' dummy method
+
 
 PUB reset()
 ' Perform soft-reset
     writereg(core.RESET, 0, 0)
     waitms(15)
+
 
 PUB rh_adc_res(bits): curr_res
 ' Set resolution of RH readings, in bits
@@ -117,18 +142,18 @@ PUB rh_adc_res(bits): curr_res
 '       11  11
 '       12  14
     curr_res := 0
-    readreg(core#RD_RH_T_USER1, 1, @curr_res)
+    readreg(core.RD_RH_T_USER1, 1, @curr_res)
     case bits
         8, 10, 11, 12:
             bits := lookdownz(bits: 12, 8, 10, 11)
             bits := lookupz(bits: $00, $01, $80, $81)
+            bits := (curr_res & core.ADCRES_MASK) | bits
+            writereg(core.WR_RH_T_USER1, 1, @bits)
         other:
-            curr_res &= core#ADCRES_BITS
+            curr_res &= core.ADCRES_BITS
             curr_res := lookdownz(curr_res: $00, $01, $80, $81)
             return lookupz(curr_res: 12, 8, 10, 11)
 
-    bits := (curr_res & core#ADCRES_MASK) | bits
-    writereg(core#WR_RH_T_USER1, 1, @bits)
 
 PUB rh_data(): rh_adc
 ' Read relative humidity ADC data
@@ -136,10 +161,12 @@ PUB rh_data(): rh_adc
     rh_adc := 0
     readreg(core.MEAS_RH_NOHOLD, 2, @rh_adc)
 
+
 PUB rh_word2pct(rh_word): rh
 ' Convert RH ADC word to percent
 '   Returns: relative humidity, in hundredths of a percent
     return ((125_00 * rh_word) / 65536) - 6_00
+
 
 PUB serial_num(ptr_buff): status | snb, sna
 ' Read the 64-bit serial number of the device into ptr_buff
@@ -147,11 +174,12 @@ PUB serial_num(ptr_buff): status | snb, sna
 '   Returns: 0 on success, -1 on failure
     status := 0
     longfill(@sna, 0, 2)
-    if (readreg(core.RD_SERIALNUM_1, 4, @sna) == -1)
+    if ( readreg(core.RD_SERIALNUM_1, 4, @sna) == -1 )
         return -1
-    if (readreg(core.RD_SERIALNUM_2, 4, @snb) == -1)
+    if ( readreg(core.RD_SERIALNUM_2, 4, @snb) == -1 )
         return -1
     longmove(ptr_buff, @snb, 2)
+
 
 PUB temp_adc_res(bits): curr_res
 ' Set resolution of temperature readings, in bits
@@ -161,23 +189,23 @@ PUB temp_adc_res(bits): curr_res
 '   NOTE: Setting this method directly affects RH ADC resolution also
 '   The following table shows equivalent settings for RH:
 '       Temp    RH
+'       11      11
 '       12      8
 '       13      10
-'       11      11
-'       11      11
 '       14      12
-    readreg(core#RD_RH_T_USER1, 1, @curr_res)
+    curr_res := 0
+    readreg(core.RD_RH_T_USER1, 1, @curr_res)
     case bits
         11..14:
             bits := lookdownz(bits: 14, 12, 13, 11)
             bits := lookupz(bits: $00, $01, $80, $81)
+            bits := (curr_res & core.ADCRES_MASK) | bits
+            writereg(core.WR_RH_T_USER1, 1, @bits)
         other:
-            curr_res &= core#ADCRES_BITS
+            curr_res &= core.ADCRES_BITS
             curr_res := lookdownz(curr_res: $00, $01, $80, $81)
             return lookupz(curr_res: 12, 8, 10, 11)
 
-    bits := (curr_res & core#ADCRES_MASK) | bits
-    writereg(core#WR_RH_T_USER1, 1, @bits)
 
 PUB temp_data(): temp_adc
 ' Read temperature ADC data
@@ -185,8 +213,9 @@ PUB temp_data(): temp_adc
     temp_adc := 0
     readreg(core.READ_PREV_TEMP, 2, @temp_adc)
 
+
 PUB temp_word2deg(temp_word): temp
-' Convert thermocouple ADC word to temperature
+' Convert temperature ADC word to temperature
 '   Returns: temperature, in hundredths of a degree, in chosen scale
     temp := ((175_72 * temp_word) / 65536) - 46_85
     case _temp_scale
@@ -196,6 +225,7 @@ PUB temp_word2deg(temp_word): temp
             return ((temp * 9) / 5) + 32_00
         other:
             return FALSE
+
 
 PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
 ' Read nr_bytes from the slave device into ptr_buff
@@ -315,6 +345,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
         other:
             return
 
+
 PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to the slave device
     case reg_nr
@@ -333,9 +364,10 @@ PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         other:
             return
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -351,5 +383,5 @@ NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPO
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SOFTWARE.
 }
+
