@@ -4,8 +4,8 @@
     Description:    Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Author:         Jesse Burt
     Started:        Jul 20, 2019
-    Updated:        Oct 2, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        Apr 29, 2025
+    Copyright (c) 2025 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 
@@ -41,12 +41,12 @@ PUB null()
 ' This is not a top-level object
 
 
-PUB start(): status
+PUB start(): s
 ' Start using default I/O settings
     return startx(SCL, SDA, I2C_FREQ)
 
 
-PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): s
 ' Start the driver with custom I/O settings
 '   SCL_PIN:    I2C clock, 0..31
 '   SDA_PIN:    I2C data, 0..31
@@ -55,7 +55,7 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 '       cog ID+1 of I2C engine on success (= calling cog ID+1, if the bytecode I2C engine is used)
 '       0 on failure
     if ( lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) )
-        if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
+        if ( s := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             time.usleep(core.T_POR)
             if ( i2c.present(SLAVE_WR) )          ' check device bus presence
                 reset()
@@ -84,45 +84,43 @@ PUB dev_id(): id | tmp[2]
     return tmp.byte[3]
 
 
-PUB firmware_rev(): fwrev
+PUB firmware_rev(): r
 ' Read sensor internal firmware revision
 '   Returns:
 '       $FF: Version 1.0
 '       $20: Version 2.0
-    readreg(core.RD_FIRMWARE_REV, 1, @fwrev)
+    return readreg(core.RD_FIRMWARE_REV)
 
 
-PUB heater_curr(): curr
+PUB heater_curr(): c
 ' Get heater current
 '   Returns: milliamperes
 '   NOTE: Values are approximate, and typical
-    curr := 0
-    readreg(core.RD_HEATER, 1, @curr)
-    curr &= core.HEATER_BITS
-    return lookupz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+    c := readreg(core.RD_HEATER)
+    c &= core.HEATER_BITS
+    return lookupz(c: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
 
-PUB heater_set_curr(curr)
+PUB heater_set_curr(c)
 ' Set heater current, in milliamperes
 '   Valid values: *3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94 (clamped to range)
 '   NOTE: Values are approximate, and typical
-    curr := 0 #> lookdownz(curr: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
-    writereg(core.WR_HEATER, 1, @curr)
+    c := 0 #> lookdownz(c: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
+    writereg(core.WR_HEATER, c)
 
 
-PUB heater_ena(state): curr_state
+PUB heater_ena(s): c
 ' Enable the on-chip heater
 '   Valid values: TRUE (-1 or 1), *FALSE (0)
 '   Any other value polls the chip and returns the current setting
-    curr_state := 0
-    readreg(core.RD_RH_T_USER1, 1, @curr_state)
-    case ||(state)
+    c := readreg(core.RD_RH_T_USER1)
+    case ||(s)
         0, 1:
-            state := ||(state) << core.HTRE
-            state := ((curr_state & core.HTRE_MASK) | state) & core.RD_RH_T_USER1_MASK
-            writereg(core.WR_RH_T_USER1, 1, @state)
+            s := ||(s) << core.HTRE
+            s := ( (c & core.HTRE_MASK) | s) & core.RD_RH_T_USER1_MASK
+            writereg(core.WR_RH_T_USER1, s)
         other:
-            return ((curr_state >> core.HTRE) & 1) == 1
+            return ((c >> core.HTRE) & 1) == 1
 
 
 PUB measure()
@@ -131,11 +129,11 @@ PUB measure()
 
 PUB reset()
 ' Perform soft-reset
-    writereg(core.RESET, 0, 0)
+    command(core.RESET)
     time.msleep(15)
 
 
-PUB rh_adc_res(bits): curr_res
+PUB rh_adc_res(r): c
 ' Set resolution of RH readings, in bits
 '   Valid values:
 '       8, 10, 11, 12
@@ -147,47 +145,44 @@ PUB rh_adc_res(bits): curr_res
 '       10  13
 '       11  11
 '       12  14
-    curr_res := 0
-    readreg(core.RD_RH_T_USER1, 1, @curr_res)
-    case bits
+    c := readreg(core.RD_RH_T_USER1)
+    case r
         8, 10, 11, 12:
-            bits := lookdownz(bits: 12, 8, 10, 11)
-            bits := lookupz(bits: $00, $01, $80, $81)
-            bits := (curr_res & core.ADCRES_MASK) | bits
-            writereg(core.WR_RH_T_USER1, 1, @bits)
+            r := lookdownz(r: 12, 8, 10, 11)
+            r := lookupz(r: $00, $01, $80, $81)
+            r := (c & core.ADCRES_MASK) | r
+            writereg(core.WR_RH_T_USER1, r)
         other:
-            curr_res &= core.ADCRES_BITS
-            curr_res := lookdownz(curr_res: $00, $01, $80, $81)
-            return lookupz(curr_res: 12, 8, 10, 11)
+            c &= core.ADCRES_BITS
+            c := lookdownz(c: $00, $01, $80, $81)
+            return lookupz(c: 12, 8, 10, 11)
 
 
-PUB rh_data(): rh_adc
+PUB rh_data(): r
 ' Read relative humidity ADC data
 '   Returns: u16
-    rh_adc := 0
-    readreg(core.MEAS_RH_NOHOLD, 2, @rh_adc)
+    return readreg(core.MEAS_RH_NOHOLD, 2)
 
 
-PUB rh_word2pct(rh_word): rh
+PUB rh_word2pct(w): r
 ' Convert RH ADC word to percent
 '   Returns: relative humidity, in hundredths of a percent
-    return ((125_00 * rh_word) / 65536) - 6_00
+    return ( (125_00 * w) / 65536) - 6_00
 
 
-PUB serial_num(ptr_buff): status | snb, sna
+PUB serial_num(p_buff): s | snb, sna
 ' Read the 64-bit serial number of the device into ptr_buff
 '   NOTE: Buffer at ptr_buff must be at least 8 bytes in length
 '   Returns: 0 on success, -1 on failure
-    status := 0
-    longfill(@sna, 0, 2)
-    if ( readreg(core.RD_SERIALNUM_1, 4, @sna) == -1 )
+    s := 0
+    sna := readreg(core.RD_SERIALNUM_1, 4)
+    snb := readreg(core.RD_SERIALNUM_2, 4)
+    if ( (sna == -1) or (snb == -1) )
         return -1
-    if ( readreg(core.RD_SERIALNUM_2, 4, @snb) == -1 )
-        return -1
-    longmove(ptr_buff, @snb, 2)
+    longmove(p_buff, @snb, 2)
 
 
-PUB temp_adc_res(bits): curr_res
+PUB temp_adc_res(r): c
 ' Set resolution of temperature readings, in bits
 '   Valid values:
 '       11, 12, 13, 14
@@ -199,50 +194,53 @@ PUB temp_adc_res(bits): curr_res
 '       12      8
 '       13      10
 '       14      12
-    curr_res := 0
-    readreg(core.RD_RH_T_USER1, 1, @curr_res)
-    case bits
+    c := readreg(core.RD_RH_T_USER1)
+    case r
         11..14:
-            bits := lookdownz(bits: 14, 12, 13, 11)
-            bits := lookupz(bits: $00, $01, $80, $81)
-            bits := (curr_res & core.ADCRES_MASK) | bits
-            writereg(core.WR_RH_T_USER1, 1, @bits)
+            r := lookdownz(r: 14, 12, 13, 11)
+            r := lookupz(r: $00, $01, $80, $81)
+            r := (c & core.ADCRES_MASK) | r
+            writereg(core.WR_RH_T_USER1, r)
         other:
-            curr_res &= core.ADCRES_BITS
-            curr_res := lookdownz(curr_res: $00, $01, $80, $81)
-            return lookupz(curr_res: 12, 8, 10, 11)
+            c &= core.ADCRES_BITS
+            c := lookdownz(c: $00, $01, $80, $81)
+            return lookupz(c: 12, 8, 10, 11)
 
 
-PUB temp_data(): temp_adc
+PUB temp_data(): w
 ' Read temperature ADC data
 '   Returns: s16
-    temp_adc := 0
-    readreg(core.READ_PREV_TEMP, 2, @temp_adc)
+    return readreg(core.READ_PREV_TEMP, 2)
 
 
-PUB temp_word2deg(temp_word): temp
+PUB temp_word2deg(w): t
 ' Convert temperature ADC word to temperature
-'   Returns: temperature, in hundredths of a degree, in chosen scale
-    temp := ((175_72 * temp_word) / 65536) - 46_85
+'   Returns:
+'       temperature, in hundredths of a degree, in chosen scale on success
+    t := ((175_72 * w) / 65536) - 46_85
     case _temp_scale
         C:
-            return temp
+            return t
         F:
-            return ((temp * 9) / 5) + 32_00
+            return ( (t * 9) / 5) + 32_00
         other:
-            return FALSE
+            return 0
 
 
-PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
-' Read nr_bytes from the slave device into ptr_buff
+PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
+' Read register
+'   reg_nr:     register
+'   len:        length/number of bytes to read (optional; default: 1)
+'   Returns:    register contents
     case reg_nr
         core.READ_PREV_TEMP:
             cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr
+            v := 0
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wait(SLAVE_RD)
-            i2c.rdblock_msbf(ptr_buff, nr_bytes, i2c.NAK)
+            i2c.rdblock_msbf(@v, len, i2c.NAK)
             i2c.stop()
         core.MEAS_RH_NOHOLD:
             cmd_pkt.byte[0] := SLAVE_WR
@@ -254,7 +252,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             crcrd := i2c.rd_byte(i2c.NAK)
             i2c.stop()
             if (crcrd == crc.silabs_crc8(@tmp, 2))
-                word[ptr_buff] := tmp
+                v := tmp
             else
                 return -1
         core.MEAS_TEMP_HOLD:
@@ -269,7 +267,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             crcrd := i2c.rd_byte(i2c.NAK)
             i2c.stop()
             if (crcrd == crc.silabs_crc8(@tmp, 2))
-                word[ptr_buff] := tmp
+                v := tmp
             else
                 return -1
         core.MEAS_TEMP_NOHOLD:
@@ -282,7 +280,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             crcrd := i2c.rd_byte(i2c.NAK)
             i2c.stop()
             if (crcrd == crc.silabs_crc8(@tmp, 2))
-                word[ptr_buff] := tmp
+                v := tmp
             else
                 return -1
         core.RD_RH_T_USER1, core.RD_HEATER:
@@ -291,7 +289,7 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wait(SLAVE_RD)
-            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c.NAK)
+            i2c.rdblock_lsbf(@v, len, i2c.NAK)
             i2c.stop()
         core.RD_SERIALNUM_1:
             cmd_pkt.byte[0] := SLAVE_WR
@@ -317,11 +315,10 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
                 tmp.byte[rdcnt*2] := i2c.rd_byte(i2c.ACK)
                 crcrd := i2c.rd_byte(rdcnt-- == 0)
             if (crc.silabs_crc8(@tmp, 4) == crcrd)
-                long[ptr_buff] := tmp
-                status := 0
+                v := tmp
             else
-                status := -1
-            return status
+                v := -1
+            return v
         core.RD_SERIALNUM_2:
             cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr.byte[1]
@@ -334,9 +331,9 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
                 tmp.word[rdcnt] := i2c.rdword_msbf(i2c.ACK)
                 crcrd := i2c.rd_byte(rdcnt-- == 0)
             if (crcrd == crc.silabs_crc8(@tmp, 4))
-                long[ptr_buff] := tmp
+                v := tmp
             else
-                status := -1
+                v := -1
             i2c.stop()
             return
         core.RD_FIRMWARE_REV:
@@ -346,13 +343,14 @@ PRI readreg(reg_nr, nr_bytes, ptr_buff): status | cmd_pkt, tmp, crcrd, rdcnt
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 3)
             i2c.wait(SLAVE_RD)
-            byte[ptr_buff] := i2c.rd_byte(i2c.NAK)
+            v := i2c.rd_byte(i2c.NAK)
             i2c.stop()
         other:
             return
 
 
-PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+PRI command = writereg
+PRI writereg(reg_nr, val=0) | cmd_pkt
 ' Write nr_bytes from ptr_buff to the slave device
     case reg_nr
         core.RESET:
@@ -363,7 +361,7 @@ PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         core.WR_RH_T_USER1, core.WR_HEATER:
             cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr
-            cmd_pkt.byte[2] := byte[ptr_buff][0]
+            cmd_pkt.byte[2] := val
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 3)
             i2c.stop()
@@ -373,7 +371,7 @@ PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2025 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
