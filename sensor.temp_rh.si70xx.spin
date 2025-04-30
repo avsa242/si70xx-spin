@@ -4,7 +4,7 @@
     Description:    Driver for Silicon Labs Si70xx-series temperature/humidity sensors
     Author:         Jesse Burt
     Started:        Jul 20, 2019
-    Updated:        Apr 29, 2025
+    Updated:        Apr 30, 2025
     Copyright (c) 2025 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
@@ -96,8 +96,7 @@ PUB heater_curr(): c
 ' Get heater current
 '   Returns: milliamperes
 '   NOTE: Values are approximate, and typical
-    c := readreg(core.RD_HEATER)
-    c &= core.HEATER_BITS
+    c := (readreg(core.RD_HEATER) & core.HEATER_BITS)
     return lookupz(c: 3, 9, 15, 21, 27, 33, 40, 46, 52, 58, 64, 70, 76, 82, 88, 94)
 
 
@@ -116,8 +115,7 @@ PUB heater_ena(s): c
     c := readreg(core.RD_RH_T_USER1)
     case ||(s)
         0, 1:
-            s := ||(s) << core.HTRE
-            s := ( (c & core.HTRE_MASK) | s) & core.RD_RH_T_USER1_MASK
+            s := ( (c & core.HTRE_MASK) | ( ||(s) << core.HTRE) )
             writereg(core.WR_RH_T_USER1, s)
         other:
             return ((c >> core.HTRE) & 1) == 1
@@ -215,8 +213,7 @@ PUB temp_data(): w
 
 PUB temp_word2deg(w): t
 ' Convert temperature ADC word to temperature
-'   Returns:
-'       temperature, in hundredths of a degree, in chosen scale on success
+'   Returns:    temperature, in hundredths of a degree, in chosen scale
     t := ((175_72 * w) / 65536) - 46_85
     case _temp_scale
         C:
@@ -232,10 +229,10 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
 '   reg_nr:     register
 '   len:        length/number of bytes to read (optional; default: 1)
 '   Returns:    register contents
+    cmd_pkt.byte[0] := SLAVE_WR
+    cmd_pkt.byte[1] := reg_nr
     case reg_nr
         core.READ_PREV_TEMP:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
             v := 0
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
@@ -243,8 +240,6 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
             i2c.rdblock_msbf(@v, len, i2c.NAK)
             i2c.stop()
         core.MEAS_RH_NOHOLD:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wait(SLAVE_RD)
@@ -256,8 +251,6 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
             else
                 return -1
         core.MEAS_TEMP_HOLD:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.start()
@@ -271,8 +264,6 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
             else
                 return -1
         core.MEAS_TEMP_NOHOLD:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wait(SLAVE_RD)
@@ -284,15 +275,12 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
             else
                 return -1
         core.RD_RH_T_USER1, core.RD_HEATER:
-            cmd_pkt.byte[0] := SLAVE_WR
-            cmd_pkt.byte[1] := reg_nr
             i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wait(SLAVE_RD)
             i2c.rdblock_lsbf(@v, len, i2c.NAK)
             i2c.stop()
         core.RD_SERIALNUM_1:
-            cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr.byte[1]
             cmd_pkt.byte[2] := reg_nr.byte[0]
             i2c.start()
@@ -320,7 +308,6 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
                 v := -1
             return v
         core.RD_SERIALNUM_2:
-            cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr.byte[1]
             cmd_pkt.byte[2] := reg_nr.byte[0]
             i2c.start()
@@ -337,7 +324,6 @@ PRI readreg(reg_nr, len=1): v | cmd_pkt, tmp, crcrd, rdcnt
             i2c.stop()
             return
         core.RD_FIRMWARE_REV:
-            cmd_pkt.byte[0] := SLAVE_WR
             cmd_pkt.byte[1] := reg_nr.byte[1]
             cmd_pkt.byte[2] := reg_nr.byte[0]
             i2c.start()
