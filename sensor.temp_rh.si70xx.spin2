@@ -109,7 +109,7 @@ PUB heater_ena(s): c
     c := readreg(core.RD_RH_T_USER1)
     case abs(s)
         0, 1:
-            s := ( (c & core.HTRE_MASK) | ( ||(s) << core.HTRE) )
+            s := ( (c & core.HTRE_MASK) | ( abs(s) << core.HTRE) )
             writereg(core.WR_RH_T_USER1, s)
         other:
             return ((c >> core.HTRE) & 1) == 1
